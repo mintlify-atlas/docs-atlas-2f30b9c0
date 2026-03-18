@@ -1,0 +1,76 @@
+---
+title: "Update transaction"
+description: "PATCH /api/transacciones/:id — Update fields on an existing transaction"
+---
+
+## `PATCH /api/transacciones/:id`
+
+Updates one or more fields on an existing transaction. All body fields are optional — only send the fields you want to change. The `actualizado_en` timestamp is set automatically.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+| Content-Type | application/json | Yes |
+
+### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+### Body
+
+<ParamField body="concepto" type="string">
+  Updated description of the order.
+</ParamField>
+
+<ParamField body="mesa" type="string">
+  Updated service location.
+</ParamField>
+
+<ParamField body="cliente" type="string">
+  Updated customer name.
+</ParamField>
+
+<ParamField body="estado" type="string">
+  Updated status. One of `pendiente`, `abierto`, or `cerrado`.
+</ParamField>
+
+## Response
+
+### Success (200)
+
+Returns the full updated transaction object (same shape as [Get transaction](/api-reference/transacciones/get)).
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 404 | Transaction not found |
+
+## Example
+
+```bash
+curl -X PATCH http://localhost:3000/api/transacciones/42 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"concepto": "Pedido mesa 5 - Actualizado", "mesa": "Mesa 10"}'
+```
+
+```json
+{
+  "id": 42,
+  "concepto": "Pedido mesa 5 - Actualizado",
+  "mesa": "Mesa 10",
+  "estado": "abierto",
+  "actualizado_en": "2026-03-18T15:00:00.000Z"
+}
+```

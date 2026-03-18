@@ -1,0 +1,148 @@
+---
+title: "Get register summary"
+description: "GET /api/caja/resumen — Retrieve the closing summary for the open register"
+---
+
+## `GET /api/caja/resumen`
+
+Calculates and returns a real-time summary of the currently open register, including expected cash on hand, QR balance, and a list of all recorded expenses. Use this endpoint to review figures before closing the register.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin` or `cajero`
+
+## Request
+
+No parameters or body required.
+
+## Response
+
+### Success (200)
+
+<ResponseField name="caja" type="object">
+  The current open register object (same shape as `GET /api/caja/actual`)
+</ResponseField>
+
+<ResponseField name="resumen" type="object">
+  Calculated financial summary for the current shift
+
+  <Expandable title="resumen fields">
+    <ResponseField name="resumen.monto_inicial" type="number">
+      Opening cash amount (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.ventas_efectivo" type="number">
+      Total cash sales in this shift (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.ventas_qr" type="number">
+      Total QR sales in this shift (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.gastos_efectivo" type="number">
+      Total cash expenses in this shift (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.gastos_qr" type="number">
+      Total QR expenses in this shift (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.efectivo_esperado" type="number">
+      Expected physical cash: `monto_inicial + ventas_efectivo − gastos_efectivo` (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.total_qr" type="number">
+      Net QR balance: `ventas_qr − gastos_qr` (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.total_del_dia" type="number">
+      Total revenue for the day: `ventas_efectivo + ventas_qr` (BOB)
+    </ResponseField>
+
+    <ResponseField name="resumen.total_gastos" type="number">
+      Total all expenses: `gastos_efectivo + gastos_qr` (BOB)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="gastos" type="array">
+  List of all expense records for the current register
+
+  <Expandable title="gastos item fields">
+    <ResponseField name="gastos[].id" type="number">
+      Expense record ID
+    </ResponseField>
+
+    <ResponseField name="gastos[].caja_id" type="number">
+      Register ID this expense belongs to
+    </ResponseField>
+
+    <ResponseField name="gastos[].usuario_id" type="string | null">
+      ID of the user who recorded the expense
+    </ResponseField>
+
+    <ResponseField name="gastos[].descripcion" type="string">
+      Expense description
+    </ResponseField>
+
+    <ResponseField name="gastos[].metodo_pago" type="string">
+      Payment method: `efectivo` or `qr`
+    </ResponseField>
+
+    <ResponseField name="gastos[].monto" type="number">
+      Expense amount (BOB)
+    </ResponseField>
+
+    <ResponseField name="gastos[].creado_en" type="string">
+      Timestamp when the expense was created
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | No register is currently open |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+
+## Example
+
+```bash
+curl https://api.example.com/api/caja/resumen \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "caja": {
+    "id": 1,
+    "fecha": "2026-02-04",
+    "cerrada": false
+  },
+  "resumen": {
+    "monto_inicial": 500.00,
+    "ventas_efectivo": 1200.00,
+    "ventas_qr": 800.00,
+    "gastos_efectivo": 100.00,
+    "gastos_qr": 50.00,
+    "efectivo_esperado": 1600.00,
+    "total_qr": 750.00,
+    "total_del_dia": 2000.00,
+    "total_gastos": 150.00
+  },
+  "gastos": [
+    {
+      "id": 1,
+      "caja_id": 1,
+      "usuario_id": "usr_abc123",
+      "descripcion": "Compra de gas",
+      "metodo_pago": "efectivo",
+      "monto": 100.00,
+      "creado_en": "2026-02-04T10:00:00.000Z",
+      "actualizado_en": "2026-02-04T10:00:00.000Z",
+      "borrado_en": null
+    }
+  ]
+}
+```

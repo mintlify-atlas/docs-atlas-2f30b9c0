@@ -1,0 +1,134 @@
+---
+title: "Get transaction"
+description: "GET /api/transacciones/:id — Retrieve a single transaction by ID"
+---
+
+## `GET /api/transacciones/:id`
+
+Returns a single transaction by its numeric ID. The response includes the calculated `monto_pendiente` field.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+## Response
+
+### Success (200)
+
+<ResponseField name="id" type="number">
+  Transaction ID.
+</ResponseField>
+
+<ResponseField name="nro_reg" type="number">
+  Sequential registration number.
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Transaction description.
+</ResponseField>
+
+<ResponseField name="tipo" type="string">
+  Transaction type.
+</ResponseField>
+
+<ResponseField name="mesa" type="string | null">
+  Service location.
+</ResponseField>
+
+<ResponseField name="cliente" type="string | null">
+  Customer name.
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Status: `pendiente`, `abierto`, or `cerrado`.
+</ResponseField>
+
+<ResponseField name="estado_cocina" type="string">
+  Kitchen status: `pendiente` or `terminado`.
+</ResponseField>
+
+<ResponseField name="monto_total" type="string">
+  Total amount as a decimal string.
+</ResponseField>
+
+<ResponseField name="monto_pagado" type="string">
+  Amount already paid as a decimal string.
+</ResponseField>
+
+<ResponseField name="monto_pendiente" type="string">
+  Calculated outstanding amount (`monto_total - monto_pagado`).
+</ResponseField>
+
+<ResponseField name="caja_id" type="number | null">
+  Associated register ID.
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string | null">
+  ID of the user who created the transaction.
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  Creation date (`YYYY-MM-DD`).
+</ResponseField>
+
+<ResponseField name="hora" type="string">
+  Creation timestamp with timezone.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Full creation timestamp.
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Last update timestamp.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 404 | Transaction not found |
+
+## Example
+
+```bash
+curl http://localhost:3000/api/transacciones/42 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "id": 42,
+  "nro_reg": 1,
+  "concepto": "Pedido mesa 5",
+  "tipo": "venta",
+  "mesa": "Mesa 5",
+  "cliente": "Juan Pérez",
+  "estado": "abierto",
+  "estado_cocina": "pendiente",
+  "monto_total": "85.00",
+  "monto_pagado": "0.00",
+  "monto_pendiente": "85.00",
+  "caja_id": 3,
+  "usuario_id": "usr_1234567890",
+  "fecha": "2026-03-18",
+  "hora": "2026-03-18T14:30:00.000Z",
+  "creado_en": "2026-03-18T14:30:00.000Z",
+  "actualizado_en": "2026-03-18T14:35:00.000Z",
+  "borrado_en": null
+}
+```

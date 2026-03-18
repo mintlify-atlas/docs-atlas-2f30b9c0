@@ -1,0 +1,72 @@
+---
+title: "Get dish"
+description: "GET /api/platos/:id — Retrieve a single dish by ID"
+---
+
+## `GET /api/platos/:id`
+
+Returns a single dish by its ID. Returns 404 if the dish does not exist or has been soft-deleted.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+## Request
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid format, 10 characters)
+</ParamField>
+
+## Response
+
+### Success (200)
+
+<ResponseField name="id" type="string">
+  Unique dish ID (nanoid, 10 characters)
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Dish name
+</ResponseField>
+
+<ResponseField name="precio" type="string">
+  Dish price as a decimal string (e.g. `"25.00"`)
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Creation timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Last update timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string | null">
+  Soft-delete timestamp — `null` for active dishes
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 404 | Dish not found or has been deleted |
+
+## Example
+
+```bash
+curl https://api.example.com/api/platos/aB3dEfGhIj \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "id": "aB3dEfGhIj",
+  "nombre": "Sopa de Maní",
+  "precio": "25.00",
+  "creado_en": "2026-02-04T09:00:00.000Z",
+  "actualizado_en": "2026-02-04T09:00:00.000Z",
+  "borrado_en": null
+}
+```

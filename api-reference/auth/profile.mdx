@@ -1,0 +1,61 @@
+---
+title: "Get profile"
+description: "GET /api/auth/profile — Return the authenticated user's profile"
+---
+
+## `GET /api/auth/profile`
+
+Returns the profile of the currently authenticated user based on the JWT token provided in the request.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+## Response
+
+### Success (200)
+
+<ResponseField name="id" type="string">
+  Unique user identifier (e.g. `usr_1234567890`).
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  The user's full name.
+</ResponseField>
+
+<ResponseField name="nombre_usuario" type="string">
+  The user's login name.
+</ResponseField>
+
+<ResponseField name="rol" type="string">
+  The user's role. One of `admin` or `cajero`.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — token missing, invalid, or expired |
+
+## Example
+
+```bash
+curl http://localhost:3000/api/auth/profile \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "id": "usr_1234567890",
+  "nombre": "Administrador",
+  "nombre_usuario": "admin",
+  "rol": "admin"
+}
+```

@@ -1,0 +1,84 @@
+---
+title: "Login"
+description: "POST /api/auth/login — Authenticate a user and receive a JWT token"
+---
+
+## `POST /api/auth/login`
+
+Authenticates a user with their username and password. Returns a signed JWT access token and the user's profile data.
+
+**Authentication:** Not required
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Content-Type | application/json | Yes |
+
+### Body
+
+<ParamField body="nombre_usuario" type="string" required>
+  The user's login name. Must be between 3 and 30 characters.
+</ParamField>
+
+<ParamField body="contrasena" type="string" required>
+  The user's password. Must be at least 6 characters.
+</ParamField>
+
+## Response
+
+### Success (200)
+
+<ResponseField name="access_token" type="string">
+  A signed JWT to include in subsequent requests as `Bearer <token>`.
+</ResponseField>
+
+<ResponseField name="usuario" type="object">
+  The authenticated user's profile.
+
+  <Expandable title="usuario fields">
+    <ResponseField name="usuario.id" type="string">
+      Unique user identifier (e.g. `usr_1234567890`).
+    </ResponseField>
+
+    <ResponseField name="usuario.nombre" type="string">
+      The user's full name.
+    </ResponseField>
+
+    <ResponseField name="usuario.nombre_usuario" type="string">
+      The user's login name.
+    </ResponseField>
+
+    <ResponseField name="usuario.rol" type="string">
+      The user's role. One of `admin` or `cajero`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Invalid credentials — username not found or password incorrect |
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"nombre_usuario": "admin", "contrasena": "Admin123!"}'
+```
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "usuario": {
+    "id": "usr_1234567890",
+    "nombre": "Administrador",
+    "nombre_usuario": "admin",
+    "rol": "admin"
+  }
+}
+```

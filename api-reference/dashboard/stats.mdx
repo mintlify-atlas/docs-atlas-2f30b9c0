@@ -1,0 +1,121 @@
+---
+title: "Dashboard stats"
+description: "Real-time summary statistics for the restaurant dashboard"
+---
+
+The dashboard stats endpoint returns a single snapshot of key metrics scoped to the current calendar day (using the server's configured timezone, `America/La_Paz`). It is designed to power frontend dashboard widgets without requiring multiple round trips.
+
+<Note>
+This endpoint requires only a valid JWT. No specific role (`admin` or `cajero`) is needed.
+</Note>
+
+---
+
+## `GET /api/dashboard/stats`
+
+Return a real-time summary of restaurant activity.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+### Request parameters
+
+No parameters.
+
+### Response
+
+Returns a stats object (`200 OK`).
+
+<ResponseField name="totalUsuarios" type="number">
+  Count of active (non-deleted) users in the system.
+</ResponseField>
+
+<ResponseField name="totalProductos" type="number">
+  Count of active (non-deleted) products.
+</ResponseField>
+
+<ResponseField name="totalPlatos" type="number">
+  Count of active (non-deleted) dishes (platos).
+</ResponseField>
+
+<ResponseField name="transaccionesHoy" type="number">
+  Total number of non-deleted transactions recorded today.
+</ResponseField>
+
+<ResponseField name="ordenesAbiertas" type="number">
+  Number of today's transactions with status `pendiente` or `abierto`.
+</ResponseField>
+
+<ResponseField name="ingresosHoy" type="string">
+  Sum of `monto_total` for today's transactions with status `cerrado`, as a two-decimal string (e.g. `"850.00"`). Returns `"0.00"` when there are no closed transactions.
+</ResponseField>
+
+<ResponseField name="actividadReciente" type="array">
+  The 5 most recent transactions from today, ordered by `hora` descending. Each item has the following fields:
+
+  <ResponseField name="id" type="number">
+    Transaction serial ID.
+  </ResponseField>
+
+  <ResponseField name="concepto" type="string">
+    Transaction description (e.g. `"Mesa 3 - Almuerzo"`).
+  </ResponseField>
+
+  <ResponseField name="mesa" type="string | null">
+    Table or service label (e.g. `"Mesa 3"`, `"Para llevar"`). `null` if not set.
+  </ResponseField>
+
+  <ResponseField name="estado" type="string">
+    Transaction status: `pendiente`, `abierto`, or `cerrado`.
+  </ResponseField>
+
+  <ResponseField name="monto_total" type="string">
+    Total amount as a two-decimal string (e.g. `"120.00"`). Defaults to `"0.00"`.
+  </ResponseField>
+
+  <ResponseField name="hora" type="string (ISO 8601)">
+    Timestamp of the transaction.
+  </ResponseField>
+</ResponseField>
+
+### Error codes
+
+| Status | Meaning |
+|--------|---------|
+| `401`  | Missing or invalid JWT |
+
+### Example
+
+```bash
+curl https://api.example.com/api/dashboard/stats \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "totalUsuarios": 4,
+  "totalProductos": 12,
+  "totalPlatos": 8,
+  "transaccionesHoy": 15,
+  "ordenesAbiertas": 3,
+  "ingresosHoy": "850.00",
+  "actividadReciente": [
+    {
+      "id": 42,
+      "concepto": "Mesa 3 - Almuerzo",
+      "mesa": "Mesa 3",
+      "estado": "abierto",
+      "monto_total": "120.00",
+      "hora": "2026-03-18T14:35:00.000Z"
+    },
+    {
+      "id": 41,
+      "concepto": "Para llevar",
+      "mesa": null,
+      "estado": "cerrado",
+      "monto_total": "75.50",
+      "hora": "2026-03-18T14:10:00.000Z"
+    }
+  ]
+}
+```

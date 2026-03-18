@@ -1,0 +1,83 @@
+---
+title: "Reopen transaction"
+description: "POST /api/transacciones/:id/reabrir — Reopen a closed transaction to add more items"
+---
+
+## `POST /api/transacciones/:id/reabrir`
+
+Reopens a transaction that is in the `cerrado` state, setting its status back to `abierto`. The existing `monto_pagado` is preserved so that previously paid amounts are not charged again — only the new `monto_pendiente` will need to be settled.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+<Note>
+  You can only reopen transactions whose `estado` is `cerrado`. Calling this endpoint on an `abierto` or `pendiente` transaction returns a `400` error.
+</Note>
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+## Response
+
+### Success (200)
+
+Returns the updated transaction object with `estado` set to `abierto`.
+
+<ResponseField name="id" type="number">
+  Transaction ID.
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Updated status — always `abierto` after a successful reopen.
+</ResponseField>
+
+<ResponseField name="monto_pagado" type="string">
+  Preserved amount from previous payments — not reset.
+</ResponseField>
+
+<ResponseField name="monto_total" type="string">
+  Total amount (unchanged until new items are added).
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Timestamp of the reopen action.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Transaction is not in `cerrado` state |
+| 401 | Unauthorized |
+| 404 | Transaction not found |
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/api/transacciones/42/reabrir \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "id": 42,
+  "concepto": "Pedido mesa 5",
+  "estado": "abierto",
+  "monto_total": "85.00",
+  "monto_pagado": "85.00",
+  "actualizado_en": "2026-03-18T15:30:00.000Z"
+}
+```
+
+After reopening, add new items with [Add item](/api-reference/transacciones/items). The new items will increase `monto_total` and create a fresh `monto_pendiente` that needs to be paid.

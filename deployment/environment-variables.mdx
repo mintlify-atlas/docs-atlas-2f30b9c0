@@ -1,0 +1,101 @@
+---
+title: "Environment variables"
+description: "Required and optional configuration for the Restaurante API"
+---
+
+The Restaurante API is configured entirely through environment variables. At startup, `@nestjs/config` loads your `.env` file and makes every variable available throughout the application.
+
+## Sample `.env` file
+
+```bash .env
+# Database
+DATABASE_URL=postgresql://restaurante:password@localhost:5432/restaurante_db
+
+# Server
+PORT=3000
+
+# Authentication
+JWT_SECRET=change-me-to-a-long-random-string
+JWT_EXPIRATION=24h
+```
+
+<Warning>
+  Never commit your `.env` file to version control. It is already listed in `.gitignore`. Treat `JWT_SECRET` and `DATABASE_URL` as secrets — rotate them immediately if they are ever exposed.
+</Warning>
+
+## Variable reference
+
+### Database
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL connection string used by both Drizzle ORM (migrations, seeds) and the runtime connection pool.
+
+  Format: `postgresql://<user>:<password>@<host>:<port>/<database>`
+
+  `drizzle.config.ts` reads this variable directly and throws an error at startup if it is not set:
+
+  ```typescript
+  const connection = process.env.DATABASE_URL;
+  if (!connection) {
+    throw new Error('DATABASE_URL no está definida.');
+  }
+  ```
+
+  The `DrizzleModule` also validates this variable on application bootstrap — the API will not start without it.
+</ParamField>
+
+### Server
+
+<ParamField path="PORT" type="number" default="3000">
+  The port the NestJS HTTP server listens on.
+
+  <Note>
+    Defaults to `3000` when not set. On Railway and other PaaS platforms, the platform injects `PORT` automatically.
+  </Note>
+</ParamField>
+
+### Authentication
+
+<ParamField path="JWT_SECRET" type="string" required>
+  Secret key used to sign and verify JWT access tokens. Use a long, randomly generated string.
+
+  If this variable is not set, the application falls back to the insecure default value `default-secret`. **Always set an explicit secret in production.**
+
+  <Warning>
+    A weak or default `JWT_SECRET` allows anyone to forge valid tokens. Generate a strong secret with:
+
+    ```bash
+    openssl rand -base64 64
+    ```
+  </Warning>
+</ParamField>
+
+<ParamField path="JWT_EXPIRATION" type="string" default="24h">
+  How long a JWT access token remains valid. Accepts any value supported by the `jsonwebtoken` library.
+
+  Examples: `15m`, `1h`, `24h`, `7d`.
+
+  <Note>
+    Defaults to `24h` when not set.
+  </Note>
+</ParamField>
+
+## How variables are loaded
+
+`app.module.ts` registers `ConfigModule` globally:
+
+```typescript
+ConfigModule.forRoot({
+  isGlobal: true,
+})
+```
+
+This means every module in the application can inject `ConfigService` and call `configService.get<string>('VARIABLE_NAME')` without importing `ConfigModule` again. The module reads from the `.env` file in the project root by default.
+
+## Docker Compose
+
+When running with Docker Compose, pass environment variables through your `.env` file. Docker Compose automatically reads `.env` from the project root and makes the values available to the containers.
+
+<Note>
+  The `.dockerignore` file excludes `.env`, `.env.local`, and `.env.*.local` from the Docker build context. Environment variables are injected at runtime — they are never baked into the image.
+</Note>

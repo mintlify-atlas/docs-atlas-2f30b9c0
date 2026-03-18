@@ -1,0 +1,232 @@
+---
+title: "Order lifecycle"
+description: "From creating a transaction to recording payment"
+---
+
+Every sale in the Restaurante API follows a consistent lifecycle: open a cash register, create a transaction, add items, let the kitchen mark the order done, then collect payment. This guide walks you through each step with real request examples.
+
+## Transaction states
+
+A transaction moves through two independent state machines:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `estado` | `pendiente` → `abierto` → `cerrado` | Payment and billing state |
+| `estado_cocina` | `pendiente` → `terminado` | Kitchen preparation state |
+
+The transaction automatically closes (`estado: cerrado`) only when **both** conditions are met: the kitchen has marked it `terminado` and `monto_pendiente` reaches zero.
+
+<Note>
+  `monto_pendiente` is a calculated field — it is never stored in the database. The API computes it as `monto_total - monto_pagado` on every response.
+</Note>
+
+## Full order walkthrough
+
+<Steps>
+  <Step title="Open a cash register">
+    Before creating transactions, you need an open `caja_turno`. If no caja is open, transactions are created without a `caja_id` and payments will not be tallied to any shift.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/caja/abrir \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "b200": 2,
+        "b100": 3,
+        "b50": 4,
+        "b20": 5,
+        "b10": 10,
+        "b5": 10,
+        "m2": 20,
+        "m1": 20,
+        "m050": 0,
+        "m020": 0,
+        "m010": 0
+      }'
+    ```
+
+    The API returns the new caja with its `id`. Take note of it — you can also retrieve it later with `GET /api/caja/actual`.
+  </Step>
+
+  <Step title="Create a transaction">
+    Create a new transaction with a `concepto` (description), an optional `mesa` (table identifier), and the `caja_id`. If you omit `caja_id`, the API automatically links it to the currently open caja.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/transacciones \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "nro_reg": 1,
+        "concepto": "Pedido mesa 5",
+        "mesa": "Mesa 5",
+        "cliente": "Juan Pérez"
+      }'
+    ```
+
+    ```json
+    {
+      "id": 42,
+      "nro_reg": 1,
+      "concepto": "Pedido mesa 5",
+      "mesa": "Mesa 5",
+      "cliente": "Juan Pérez",
+      "estado": "pendiente",
+      "estado_cocina": "pendiente",
+      "monto_total": "0",
+      "monto_pagado": "0",
+      "monto_pendiente": "0.00",
+      "caja_id": 1
+    }
+    ```
+
+    The transaction starts in `estado: pendiente` with all amounts at zero.
+  </Step>
+
+  <Step title="Add items">
+    Add a plato (kitchen dish) or producto (standalone product) to the transaction. Supply either `plato_id` or `producto_id` — never both.
+
+    <CodeGroup>
+
+    ```bash Add a plato
+    curl -X POST http://localhost:3000/api/transacciones/42/items \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "plato_id": "plato_abc123",
+        "cantidad": 2,
+        "notas": "Sin cebolla"
+      }'
+    ```
+
+    ```bash Add a producto
+    curl -X POST http://localhost:3000/api/transacciones/42/items \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "producto_id": "prod_xyz789",
+        "cantidad": 1
+      }'
+    ```
+
+    </CodeGroup>
+
+    The API:
+    - Looks up the current price from the plato or producto record.
+    - Calculates `subtotal = precio_unitario × cantidad`.
+    - Recalculates `monto_total` on the parent transaction.
+    - Sets `estado_cocina: pendiente` on the transaction if a plato was added.
+    - Moves the transaction to `estado: abierto`.
+  </Step>
+
+  <Step title="Add extras to an item (optional)">
+    You can attach extras to any item — either a known ingredient (by `ingrediente_id`) or a free-text description. Each extra has its own `precio` and `cantidad`.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/transacciones/42/items/7/extras \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "descripcion": "Extra queso",
+        "precio": 5.00,
+        "cantidad": 1
+      }'
+    ```
+
+    To link a tracked ingredient instead:
+
+    ```bash
+    curl -X POST http://localhost:3000/api/transacciones/42/items/7/extras \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "ingrediente_id": "ing_tomato01",
+        "precio": 3.00,
+        "cantidad": 2
+      }'
+    ```
+
+    Adding extras recalculates the item's `subtotal` and then recalculates the transaction's `monto_total`.
+  </Step>
+
+  <Step title="Kitchen marks the order done">
+    When the kitchen finishes preparing all dishes, a staff member (or the kitchen display) calls:
+
+    ```bash
+    curl -X PATCH http://localhost:3000/api/transacciones/42/cocina/completar \
+      -H "Authorization: Bearer $TOKEN"
+    ```
+
+    This sets `estado_cocina: terminado` on the transaction. If the order is already fully paid, the transaction will close automatically at this point.
+
+    The gateway also broadcasts the `pedido-completado` event to all connected WebSocket clients on the `/cocina` namespace.
+  </Step>
+
+  <Step title="Record payment">
+    Record a payment for the transaction. You can pay with `efectivo` (cash) or `qr`. Partial payments are allowed — call this endpoint multiple times until `monto_pendiente` reaches zero.
+
+    <CodeGroup>
+
+    ```bash Cash payment
+    curl -X POST http://localhost:3000/api/transacciones/42/pagos \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "metodo_pago": "efectivo",
+        "monto": 50.00,
+        "monto_recibido": 100.00
+      }'
+    ```
+
+    ```bash QR payment
+    curl -X POST http://localhost:3000/api/transacciones/42/pagos \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "metodo_pago": "qr",
+        "monto": 50.00,
+        "referencia_qr": "QR-123456789"
+      }'
+    ```
+
+    </CodeGroup>
+
+    The response includes the calculated `cambio` (change) for cash payments:
+
+    ```json
+    {
+      "id": 15,
+      "transaccion_id": 42,
+      "metodo_pago": "efectivo",
+      "monto": "50.00",
+      "monto_recibido": "100.00",
+      "cambio": "50.00"
+    }
+    ```
+
+    Payment is also automatically registered in the open caja under `ventas_efectivo` or `ventas_qr`.
+  </Step>
+
+  <Step title="Transaction closes automatically">
+    Once `monto_pendiente` reaches zero **and** `estado_cocina` is `terminado`, the API sets `estado: cerrado` without any additional call.
+
+    At closure, the API deducts stock:
+    - For **productos**: reduces the `stock` integer on the product.
+    - For **platos**: reduces `cantidad` on each linked ingredient according to `plato_ingredientes.cantidad × item.cantidad`.
+    - For **extras** with an `ingrediente_id`: reduces that ingredient's `cantidad`.
+  </Step>
+</Steps>
+
+## Reopening a closed transaction
+
+If a customer orders more after the transaction has closed, use the reopen endpoint:
+
+```bash
+curl -X POST http://localhost:3000/api/transacciones/42/reabrir \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+This sets `estado` back to `abierto`. The existing `monto_pagado` is preserved — the customer only pays the new `monto_pendiente` that accrues from the additional items. This is equivalent to the system calling `reabrir` for you whenever you add an item to a closed transaction.
+
+<Note>
+  You can only reopen a transaction that is in `estado: cerrado`. Calling this on a `pendiente` or `abierto` transaction returns a `400 Bad Request`.
+</Note>

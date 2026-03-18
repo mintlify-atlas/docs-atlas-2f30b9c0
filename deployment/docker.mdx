@@ -1,0 +1,164 @@
+---
+title: "Docker deployment"
+description: "Run Restaurante API with Docker Compose for local development and production"
+---
+
+The Restaurante API ships with a Docker Compose setup that starts both the PostgreSQL 17 database and the NestJS API together. You do not need to install PostgreSQL or Node.js on your machine — Docker handles everything.
+
+## Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (includes Docker Compose)
+- A `.env` file in the project root (copy `.env.example` to get started)
+
+<Note>
+  The first build takes a few minutes while Docker pulls the base images and installs npm packages inside the container. Subsequent starts are much faster.
+</Note>
+
+## First-time setup
+
+<Steps>
+  <Step title="Copy the environment file">
+    Create your local `.env` from the example template:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` and set `DATABASE_URL`, `JWT_SECRET`, and any other required values. See [Environment variables](/deployment/environment-variables) for the full reference.
+  </Step>
+
+  <Step title="Start the containers">
+    Build the images and start PostgreSQL and the API in the foreground:
+
+    ```bash
+    npm run dev
+    ```
+
+    This runs `docker compose up --build`. You will see log output from both the `db` and `api` services. When you see `SERVER RUNNING SUCCESSFULLY`, the API is ready.
+
+    To start in detached mode (background) instead:
+
+    ```bash
+    npm run docker:up:d
+    ```
+  </Step>
+
+  <Step title="Run migrations and seed data">
+    Apply the Drizzle ORM migrations and load the initial seed data into the running container:
+
+    ```bash
+    npm run docker:migrate
+    npm run docker:seed
+    ```
+
+    Or run reset, migrate, and seed all at once:
+
+    ```bash
+    npm run docker:fresh
+    ```
+  </Step>
+
+  <Step title="Verify the API is running">
+    The API listens on port `3000` by default. Open the Swagger UI in your browser:
+
+    ```
+    http://localhost:3000/api
+    ```
+
+    Or make a quick health check with curl:
+
+    ```bash
+    curl http://localhost:3000/api/auth/login \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -d '{"nombre_usuario": "admin", "contrasena": "Admin123!"}'
+    ```
+  </Step>
+</Steps>
+
+## Docker commands reference
+
+<CodeGroup>
+
+```bash Start (foreground)
+# Start PostgreSQL + API, rebuild on change
+npm run dev
+# alias: npm run docker:up
+```
+
+```bash Start (background)
+# Start detached — containers run in the background
+npm run docker:up:d
+```
+
+```bash Stop
+# Stop and remove containers, keep volumes
+npm run down
+# alias: npm run docker:down
+```
+
+</CodeGroup>
+
+### Database commands inside Docker
+
+| Command | What it does |
+|---|---|
+| `npm run docker:migrate` | Run pending Drizzle migrations inside the `api` container |
+| `npm run docker:seed` | Load initial seed data inside the `api` container |
+| `npm run docker:fresh` | Reset the database, run migrations, and seed — all in one step |
+
+### Logs and shell access
+
+<CodeGroup>
+
+```bash Stream API logs
+# Follow live log output from the api service
+npm run docker:logs
+```
+
+```bash Open a shell
+# Open an interactive bash session inside the api container
+npm run docker:shell
+```
+
+</CodeGroup>
+
+### Destroy all data
+
+<Warning>
+  `npm run docker:destroy` runs `docker compose down -v`, which removes all Docker volumes. This **permanently deletes your PostgreSQL data**. You will need to re-run migrations and seed after this command.
+</Warning>
+
+```bash
+npm run docker:destroy
+```
+
+## Deploying to Railway
+
+The repository includes a `railway.json` that configures the build and deploy pipeline for [Railway](https://railway.app).
+
+```json
+{
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "npm run build"
+  },
+  "deploy": {
+    "startCommand": "node dist/main",
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
+```
+
+To deploy on Railway:
+
+1. Connect your GitHub repository in the Railway dashboard.
+2. Add a PostgreSQL plugin and copy the `DATABASE_URL` it provides into your service's environment variables.
+3. Set `JWT_SECRET` and any other required variables in the Railway environment settings.
+4. Railway detects `railway.json` automatically and runs `npm run build` followed by `node dist/main`.
+
+<Note>
+  Set `PORT` in Railway's environment variables if you need a specific port. The API reads `process.env.PORT` and defaults to `3000`.
+</Note>

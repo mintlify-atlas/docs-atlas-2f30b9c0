@@ -1,0 +1,141 @@
+---
+title: "Close register"
+description: "POST /api/caja/cerrar — Close the open cash register with a physical denomination count"
+---
+
+## `POST /api/caja/cerrar`
+
+Closes the currently open register. Provide a physical count of all denominations present in the drawer; the server computes `monto_contado`, compares it against the expected cash amount, and returns a reconciliation result.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin` or `cajero`
+
+<Note>
+  The `monto_contado` is derived entirely from the denomination fields — you do not pass it directly. All denomination fields are **required** (pass `0` for empty denominations).
+</Note>
+
+## Request
+
+### Body
+
+<ParamField body="b200" type="integer" required>
+  Number of 200 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="b100" type="integer" required>
+  Number of 100 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="b50" type="integer" required>
+  Number of 50 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="b20" type="integer" required>
+  Number of 20 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="b10" type="integer" required>
+  Number of 10 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="b5" type="integer" required>
+  Number of 5 BOB bills counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="m2" type="integer" required>
+  Number of 2 BOB coins counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="m1" type="integer" required>
+  Number of 1 BOB coins counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="m050" type="integer" required>
+  Number of 0.50 BOB coins counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="m020" type="integer" required>
+  Number of 0.20 BOB coins counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="m010" type="integer" required>
+  Number of 0.10 BOB coins counted at closing (min: 0)
+</ParamField>
+
+<ParamField body="cierre_obs" type="string">
+  Optional closing observations (e.g. "Cierre normal sin novedades")
+</ParamField>
+
+## Response
+
+### Success (200)
+
+<ResponseField name="caja_id" type="number">
+  ID of the register that was closed
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  Date of the closed register (`YYYY-MM-DD`)
+</ResponseField>
+
+<ResponseField name="monto_contado" type="number">
+  Physical cash counted, computed from the submitted denomination counts
+</ResponseField>
+
+<ResponseField name="efectivo_esperado" type="number">
+  Expected cash: `monto_inicial + ventas_efectivo − gastos_efectivo`
+</ResponseField>
+
+<ResponseField name="diferencia" type="number">
+  `monto_contado − efectivo_esperado`. Negative means a shortage, positive means a surplus.
+</ResponseField>
+
+<ResponseField name="estado_diferencia" type="string">
+  Reconciliation result. One of: `exacto`, `sobrante`, `faltante`
+</ResponseField>
+
+<ResponseField name="resumen_completo" type="object">
+  Full summary object — same shape as the response from `GET /api/caja/resumen`
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | No register is currently open |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+
+## Example
+
+```bash
+curl -X POST https://api.example.com/api/caja/cerrar \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "b200": 3,
+    "b100": 8,
+    "b50": 12,
+    "b20": 20,
+    "b10": 25,
+    "b5": 40,
+    "m2": 15,
+    "m1": 30,
+    "m050": 50,
+    "m020": 60,
+    "m010": 70,
+    "cierre_obs": "Cierre normal sin novedades"
+  }'
+```
+
+```json
+{
+  "caja_id": 1,
+  "fecha": "2026-02-04",
+  "monto_contado": 1580.00,
+  "efectivo_esperado": 1600.00,
+  "diferencia": -20.00,
+  "estado_diferencia": "faltante",
+  "resumen_completo": { "..." : "..." }
+}
+```

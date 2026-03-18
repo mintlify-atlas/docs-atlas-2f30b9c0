@@ -1,0 +1,176 @@
+---
+title: "Kitchen view"
+description: "GET and PATCH endpoints for the kitchen display and order completion"
+---
+
+The kitchen view provides a real-time list of orders that are waiting to be prepared. The kitchen workflow has two steps:
+
+1. A transaction with at least one `plato_id` item automatically sets `estado_cocina` to `pendiente`.
+2. Once the kitchen has finished preparing the order, call the **complete** endpoint to mark it `terminado`.
+
+When `estado_cocina` becomes `terminado` and the transaction is also fully paid, the transaction automatically closes (`estado → cerrado`).
+
+<Note>
+  Both endpoints emit real-time WebSocket events so connected kitchen displays update without polling. Subscribe to the `pedidos_actualizados` and `pedido_completado` events on the `cocina` namespace.
+</Note>
+
+---
+
+## `GET /api/transacciones/cocina/pendientes`
+
+Returns all transactions whose `estado_cocina` is `pendiente`, ordered by date and time ascending (oldest first). Each transaction is enriched with its full list of items and their extras.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+### Response
+
+#### Success (200)
+
+An array of transaction objects. Each object includes all standard transaction fields plus:
+
+<ResponseField name="[].monto_pendiente" type="string">
+  Calculated outstanding amount.
+</ResponseField>
+
+<ResponseField name="[].items" type="array">
+  Items belonging to the transaction.
+
+  <Expandable title="Item fields">
+    <ResponseField name="items[].id" type="number">Item ID.</ResponseField>
+    <ResponseField name="items[].nombre" type="string">Resolved product or dish name.</ResponseField>
+    <ResponseField name="items[].cantidad" type="string">Quantity.</ResponseField>
+    <ResponseField name="items[].precio_unitario" type="string">Unit price.</ResponseField>
+    <ResponseField name="items[].subtotal" type="string">Line total.</ResponseField>
+    <ResponseField name="items[].notas" type="string | null">Preparation notes.</ResponseField>
+    <ResponseField name="items[].extras" type="array">
+      Extras on the item.
+      <Expandable title="Extra fields">
+        <ResponseField name="extras[].id" type="number">Extra ID.</ResponseField>
+        <ResponseField name="extras[].nombre" type="string">Ingredient name or free-text description.</ResponseField>
+        <ResponseField name="extras[].precio" type="string">Price.</ResponseField>
+        <ResponseField name="extras[].cantidad" type="string">Quantity.</ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## `PATCH /api/transacciones/:id/cocina/completar`
+
+Marks the kitchen order for a transaction as `terminado`. If the transaction is also fully paid, it will automatically close.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+### Response
+
+#### Success (200)
+
+Returns the updated transaction record with `estado_cocina` set to `terminado`.
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Could not complete the kitchen order (e.g. `estado_cocina` column missing) |
+| 401 | Unauthorized |
+| 404 | Transaction not found |
+
+---
+
+## Kitchen workflow
+
+```
+[New items added with plato_id]
+        │
+        ▼
+ estado_cocina = "pendiente"
+        │
+        │  GET /cocina/pendientes  ←── kitchen display polls or receives WS event
+        │
+        ▼
+ PATCH /:id/cocina/completar
+        │
+        ▼
+ estado_cocina = "terminado"
+        │
+        ├─ monto_pendiente > 0 → estado stays "abierto"
+        └─ monto_pendiente = 0 → estado → "cerrado"
+```
+
+---
+
+## Example
+
+```bash
+# Get all pending kitchen orders
+curl http://localhost:3000/api/transacciones/cocina/pendientes \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+[
+  {
+    "id": 42,
+    "concepto": "Pedido mesa 5",
+    "mesa": "Mesa 5",
+    "cliente": "Juan Pérez",
+    "estado": "abierto",
+    "estado_cocina": "pendiente",
+    "monto_total": "85.00",
+    "monto_pagado": "0.00",
+    "monto_pendiente": "85.00",
+    "fecha": "2026-03-18",
+    "hora": "2026-03-18T14:30:00.000Z",
+    "items": [
+      {
+        "id": 7,
+        "plato_id": "plato_abc123",
+        "nombre": "Milanesa napolitana",
+        "cantidad": "2",
+        "precio_unitario": "35.00",
+        "subtotal": "75.00",
+        "notas": "Sin cebolla",
+        "extras": [
+          {
+            "id": 3,
+            "nombre": "Extra queso",
+            "precio": "5.00",
+            "cantidad": "1"
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+
+```bash
+# Mark order 42 as done in the kitchen
+curl -X PATCH http://localhost:3000/api/transacciones/42/cocina/completar \
+  -H "Authorization: Bearer $TOKEN"
+```

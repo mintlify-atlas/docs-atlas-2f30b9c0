@@ -1,0 +1,90 @@
+---
+title: "Update dish"
+description: "PATCH /api/platos/:id — Partially update a dish's name or price"
+---
+
+## `PATCH /api/platos/:id`
+
+Updates one or both fields of an existing dish. All body fields are optional — include only the fields you want to change.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+## Request
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid format, 10 characters)
+</ParamField>
+
+### Body
+
+At least one field must be provided.
+
+<ParamField body="nombre" type="string">
+  New dish name. Maximum 60 characters.
+</ParamField>
+
+<ParamField body="precio" type="number">
+  New dish price in BOB (min: 0)
+</ParamField>
+
+## Response
+
+### Success (200)
+
+Returns the updated `platos` record.
+
+<ResponseField name="id" type="string">
+  Dish ID (unchanged)
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Updated dish name
+</ResponseField>
+
+<ResponseField name="precio" type="string">
+  Updated price as a decimal string (e.g. `"30.00"`)
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Original creation timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Timestamp of this update (ISO 8601)
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string | null">
+  Soft-delete timestamp — `null` for active dishes
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Validation error |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` |
+| 404 | Dish not found or has been deleted |
+
+## Example
+
+```bash
+curl -X PATCH https://api.example.com/api/platos/aB3dEfGhIj \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "precio": 30.00 }'
+```
+
+```json
+{
+  "id": "aB3dEfGhIj",
+  "nombre": "Sopa de Maní",
+  "precio": "30.00",
+  "creado_en": "2026-02-04T09:00:00.000Z",
+  "actualizado_en": "2026-02-04T11:00:00.000Z",
+  "borrado_en": null
+}
+```

@@ -1,0 +1,145 @@
+---
+title: "WebSocket gateway"
+description: "Real-time kitchen display via Socket.IO on the /cocina namespace"
+---
+
+The `CocinaGateway` (`src/modules/transacciones/cocina.gateway.ts`) exposes a Socket.IO namespace at `/cocina`. The kitchen display screen connects to this namespace to receive live order updates without polling.
+
+## Connection details
+
+| Property | Value |
+|---|---|
+| Namespace | `/cocina` |
+| Protocol | Socket.IO (WebSocket upgrade) |
+| CORS origin | `*` |
+| Credentials | `true` |
+
+<Warning>
+  The gateway currently sets `origin: '*'`. In production you should replace this with the specific domain of your kitchen display frontend.
+</Warning>
+
+## Connecting from the client
+
+Install the Socket.IO client:
+
+```bash
+npm install socket.io-client
+```
+
+Then connect to the `/cocina` namespace:
+
+```typescript
+import { io, Socket } from 'socket.io-client';
+
+const socket: Socket = io('http://localhost:3000/cocina', {
+  withCredentials: true,
+});
+
+socket.on('connect', () => {
+  console.log('Connected to /cocina:', socket.id);
+});
+
+socket.on('disconnect', () => {
+  console.log('Disconnected from /cocina');
+});
+```
+
+## Server-emitted events
+
+The server never listens for events from clients — it only emits. All date/time fields in event payloads are formatted as `HH:mm - dd/MM/yyyy` in the **America/La_Paz** timezone before emission.
+
+### `nuevo-pedido`
+
+Fired when a new transaction is created. The payload is the full transaction object (including `detalle_items` and their extras) with all date fields formatted.
+
+**When it fires:** immediately after a successful `POST /api/transacciones`.
+
+```typescript
+socket.on('nuevo-pedido', (pedido: TransaccionConDetalles) => {
+  // pedido.hora  → e.g. "14:35 - 18/03/2026"
+  // pedido.fecha → e.g. "14:35 - 18/03/2026"
+  console.log('New order received:', pedido.id, pedido.concepto);
+  addOrderToDisplay(pedido);
+});
+```
+
+### `pedidos-actualizados`
+
+Fired when the status of any order changes (e.g. the cashier updates `estado` or `estado_cocina`). The payload is an array of all current pending orders, fully formatted.
+
+**When it fires:** after any status-changing `PATCH /api/transacciones/:id`.
+
+```typescript
+socket.on('pedidos-actualizados', (pedidos: TransaccionConDetalles[]) => {
+  console.log(`Order list refreshed: ${pedidos.length} active orders`);
+  refreshDisplay(pedidos);
+});
+```
+
+### `pedido-completado`
+
+Fired when the kitchen marks an order as done (`estado_cocina` set to `'terminado'`). The payload is just the numeric transaction ID.
+
+**When it fires:** when the kitchen display posts completion for a specific order.
+
+```typescript
+socket.on('pedido-completado', (pedidoId: number) => {
+  console.log('Order completed:', pedidoId);
+  markOrderComplete(pedidoId);
+});
+```
+
+## Date formatting
+
+The gateway applies date formatting recursively to every object it emits. The fields it formats are `fecha`, `hora`, `creado_en`, and `actualizado_en`. The formatting logic uses `date-fns` and `date-fns-tz`:
+
+```typescript src/modules/transacciones/cocina.gateway.ts
+private readonly TIMEZONE = 'America/La_Paz';
+private readonly DATE_FORMAT = 'HH:mm - dd/MM/yyyy';
+
+// Inside formatDates():
+const zonedDate = toZonedTime(date, this.TIMEZONE);
+formatted[key] = format(zonedDate, this.DATE_FORMAT);
+```
+
+This means a UTC timestamp like `2026-03-18T18:35:00Z` arrives at the client as the string `"14:35 - 18/03/2026"` (UTC-4).
+
+## Gateway implementation
+
+The full gateway source:
+
+```typescript src/modules/transacciones/cocina.gateway.ts
+@WebSocketGateway({
+  cors: {
+    origin: '*',
+    credentials: true,
+  },
+  namespace: '/cocina',
+})
+export class CocinaGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer()
+  server: Server;
+
+  handleConnection(client: Socket) {
+    this.logger.log(`Cliente conectado a /cocina: ${client.id}`);
+  }
+
+  handleDisconnect(client: Socket) {
+    this.logger.log(`Cliente desconectado de /cocina: ${client.id}`);
+  }
+
+  emitNuevoPedido(pedido: any) {
+    const pedidoFormateado = this.formatDates(pedido);
+    this.server.emit('nuevo-pedido', pedidoFormateado);
+  }
+
+  emitPedidosActualizados(pedidos: any[]) {
+    const pedidosFormateados = this.formatDates(pedidos);
+    this.server.emit('pedidos-actualizados', pedidosFormateados);
+  }
+
+  emitPedidoCompletado(pedidoId: number) {
+    this.server.emit('pedido-completado', pedidoId);
+  }
+}
+```

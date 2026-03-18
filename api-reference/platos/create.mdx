@@ -1,0 +1,84 @@
+---
+title: "Create dish"
+description: "POST /api/platos — Create a new dish on the menu"
+---
+
+## `POST /api/platos`
+
+Creates a new dish. After creating a dish, use the ingredient endpoints to define its recipe.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+## Request
+
+### Body
+
+<ParamField body="nombre" type="string" required>
+  Dish name. Maximum 60 characters.
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Dish price in BOB (min: 0). Accepts a numeric value; stored as a decimal.
+</ParamField>
+
+## Response
+
+### Success (201)
+
+Returns the created `platos` record.
+
+<ResponseField name="id" type="string">
+  Unique dish ID (nanoid, 10 characters)
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Dish name
+</ResponseField>
+
+<ResponseField name="precio" type="string">
+  Dish price as a decimal string (e.g. `"25.00"`)
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Creation timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Last update timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string | null">
+  Soft-delete timestamp — `null` for active dishes
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Validation error — check `nombre` and `precio` |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` |
+
+## Example
+
+```bash
+curl -X POST https://api.example.com/api/platos \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Sopa de Maní",
+    "precio": 25.00
+  }'
+```
+
+```json
+{
+  "id": "aB3dEfGhIj",
+  "nombre": "Sopa de Maní",
+  "precio": "25.00",
+  "creado_en": "2026-02-04T09:00:00.000Z",
+  "actualizado_en": "2026-02-04T09:00:00.000Z",
+  "borrado_en": null
+}
+```

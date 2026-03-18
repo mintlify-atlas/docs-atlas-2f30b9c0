@@ -1,0 +1,256 @@
+---
+title: "Users"
+description: "User management endpoints with role-based access"
+---
+
+Users authenticate with a `nombre_usuario` / `contrasena` pair and are assigned a role of either `admin` or `cajero`. Passwords are hashed with bcrypt (10 rounds) before storage and are **never** returned in any API response.
+
+<Warning>
+Only users with the `admin` role can create, update, list, view, or delete users. A `cajero` user that calls any endpoint in this resource will receive a `403 Forbidden` response.
+</Warning>
+
+<Note>
+Soft delete is used throughout. Deleting a user sets `borrado_en` to the current timestamp. The record is never physically removed from the database.
+</Note>
+
+---
+
+## `POST /api/usuarios`
+
+Create a new user.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request body
+
+<ParamField body="nombre" type="string" required>
+  Full display name. Between 3 and 60 characters.
+</ParamField>
+
+<ParamField body="nombre_usuario" type="string" required>
+  Unique login username. Between 3 and 30 characters. Only lowercase letters, digits, and underscores are allowed (`^[a-z0-9_]+$`). Must be unique across all active users.
+</ParamField>
+
+<ParamField body="contrasena" type="string" required>
+  Plain-text password. Minimum 6 characters. It is hashed with bcrypt before being stored and is never returned.
+</ParamField>
+
+<ParamField body="rol" type="string" required>
+  Role to assign. Accepted values: `admin`, `cajero`.
+</ParamField>
+
+### Response
+
+Returns the created user object (`201 Created`). The `contrasena` field is excluded.
+
+<ResponseField name="id" type="string">
+  Unique identifier with the format `usr_<16-char nanoid>` (e.g. `usr_abc123def456ghi7`).
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Full display name.
+</ResponseField>
+
+<ResponseField name="nombre_usuario" type="string">
+  Login username.
+</ResponseField>
+
+<ResponseField name="rol" type="string">
+  Assigned role (`admin` or `cajero`).
+</ResponseField>
+
+<ResponseField name="creado_en" type="string (ISO 8601)">
+  Creation timestamp.
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string (ISO 8601)">
+  Last update timestamp.
+</ResponseField>
+
+### Error codes
+
+| Status | Meaning |
+|--------|---------|
+| `401`  | Missing or invalid JWT |
+| `403`  | Caller does not have the `admin` role |
+| `409`  | `nombre_usuario` is already in use by an active user |
+
+### Example
+
+```bash
+curl -X POST https://api.example.com/api/usuarios \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Juan Pérez",
+    "nombre_usuario": "juanperez",
+    "contrasena": "Password123!",
+    "rol": "cajero"
+  }'
+```
+
+```json
+{
+  "id": "usr_abc123def456ghi7",
+  "nombre": "Juan Pérez",
+  "nombre_usuario": "juanperez",
+  "rol": "cajero",
+  "creado_en": "2026-03-18T14:00:00.000Z",
+  "actualizado_en": "2026-03-18T14:00:00.000Z"
+}
+```
+
+---
+
+## `GET /api/usuarios`
+
+Return all active users.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request parameters
+
+No parameters.
+
+### Response
+
+Returns an array of user objects (`200 OK`), ordered by `creado_en` ascending. Only records where `borrado_en IS NULL` are included. The `contrasena` field is excluded from every item.
+
+### Example
+
+```bash
+curl https://api.example.com/api/usuarios \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "id": "usr_abc123def456ghi7",
+    "nombre": "Juan Pérez",
+    "nombre_usuario": "juanperez",
+    "rol": "cajero",
+    "creado_en": "2026-03-18T14:00:00.000Z",
+    "actualizado_en": "2026-03-18T14:00:00.000Z"
+  }
+]
+```
+
+---
+
+## `GET /api/usuarios/:id`
+
+Return a single active user by ID.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The user ID (format: `usr_<nanoid>`).
+</ParamField>
+
+### Response
+
+Returns the user object (`200 OK`) without `contrasena`, or `404 Not Found` if the user does not exist or has been soft-deleted.
+
+### Example
+
+```bash
+curl https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## `PUT /api/usuarios/:id`
+
+Fully update a user. All body fields are optional; only the fields you send are changed.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The user ID to update.
+</ParamField>
+
+<ParamField body="nombre" type="string">
+  New full display name. Between 3 and 60 characters.
+</ParamField>
+
+<ParamField body="nombre_usuario" type="string">
+  New login username. Between 3 and 30 characters. Only lowercase letters, digits, and underscores. Must be unique.
+</ParamField>
+
+<ParamField body="contrasena" type="string">
+  New password. Minimum 6 characters. Hashed with bcrypt before storage.
+</ParamField>
+
+<ParamField body="rol" type="string">
+  New role. Accepted values: `admin`, `cajero`.
+</ParamField>
+
+### Response
+
+Returns the updated user object (`200 OK`) without `contrasena`. `actualizado_en` is always refreshed.
+
+### Error codes
+
+| Status | Meaning |
+|--------|---------|
+| `401`  | Missing or invalid JWT |
+| `403`  | Caller does not have the `admin` role |
+| `404`  | User not found or already deleted |
+| `409`  | `nombre_usuario` is already in use by another active user |
+
+### Example
+
+```bash
+curl -X PUT https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"rol": "admin"}'
+```
+
+---
+
+## `DELETE /api/usuarios/:id`
+
+Soft-delete a user.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+<Warning>
+Only `admin` users can delete other users. This operation is irreversible through the API — a deleted user cannot log in and will not appear in any list response.
+</Warning>
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The user ID to delete.
+</ParamField>
+
+### Response
+
+Returns `204 No Content` on success. No body is returned.
+
+### Error codes
+
+| Status | Meaning |
+|--------|---------|
+| `401`  | Missing or invalid JWT |
+| `403`  | Caller does not have the `admin` role |
+| `404`  | User not found or already deleted |
+
+### Example
+
+```bash
+curl -X DELETE https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+  -H "Authorization: Bearer <token>"
+```

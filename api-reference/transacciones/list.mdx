@@ -1,0 +1,123 @@
+---
+title: "List transactions"
+description: "GET /api/transacciones — Retrieve all active transactions"
+---
+
+## `GET /api/transacciones`
+
+Returns all transactions that have not been soft-deleted, ordered by creation time descending (newest first). Each item includes the calculated `monto_pendiente` field.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+## Response
+
+### Success (200)
+
+Returns an array of transaction objects. Each object has the following fields:
+
+<ResponseField name="[].id" type="number">
+  Transaction ID.
+</ResponseField>
+
+<ResponseField name="[].nro_reg" type="number">
+  Sequential registration number.
+</ResponseField>
+
+<ResponseField name="[].concepto" type="string">
+  Transaction description.
+</ResponseField>
+
+<ResponseField name="[].tipo" type="string">
+  Transaction type (e.g. `venta`).
+</ResponseField>
+
+<ResponseField name="[].mesa" type="string | null">
+  Service location.
+</ResponseField>
+
+<ResponseField name="[].cliente" type="string | null">
+  Customer name.
+</ResponseField>
+
+<ResponseField name="[].estado" type="string">
+  Status: `pendiente`, `abierto`, or `cerrado`.
+</ResponseField>
+
+<ResponseField name="[].estado_cocina" type="string">
+  Kitchen status: `pendiente` or `terminado`.
+</ResponseField>
+
+<ResponseField name="[].monto_total" type="string">
+  Total amount as a decimal string.
+</ResponseField>
+
+<ResponseField name="[].monto_pagado" type="string">
+  Amount already paid as a decimal string.
+</ResponseField>
+
+<ResponseField name="[].monto_pendiente" type="string">
+  Calculated outstanding amount (`monto_total - monto_pagado`).
+</ResponseField>
+
+<ResponseField name="[].caja_id" type="number | null">
+  Associated register ID.
+</ResponseField>
+
+<ResponseField name="[].usuario_id" type="string | null">
+  ID of the user who created the transaction.
+</ResponseField>
+
+<ResponseField name="[].fecha" type="string">
+  Creation date (`YYYY-MM-DD`).
+</ResponseField>
+
+<ResponseField name="[].hora" type="string">
+  Creation timestamp with timezone.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+
+## Example
+
+```bash
+curl http://localhost:3000/api/transacciones \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+[
+  {
+    "id": 42,
+    "nro_reg": 1,
+    "concepto": "Pedido mesa 5",
+    "tipo": "venta",
+    "mesa": "Mesa 5",
+    "cliente": "Juan Pérez",
+    "estado": "abierto",
+    "estado_cocina": "pendiente",
+    "monto_total": "85.00",
+    "monto_pagado": "0.00",
+    "monto_pendiente": "85.00",
+    "caja_id": 3,
+    "usuario_id": "usr_1234567890",
+    "fecha": "2026-03-18",
+    "hora": "2026-03-18T14:30:00.000Z",
+    "creado_en": "2026-03-18T14:30:00.000Z",
+    "actualizado_en": "2026-03-18T14:35:00.000Z",
+    "borrado_en": null
+  }
+]
+```

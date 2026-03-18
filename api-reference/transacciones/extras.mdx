@@ -1,0 +1,213 @@
+---
+title: "Manage extras"
+description: "Add, list, and remove extras on a transaction item"
+---
+
+Extras are add-ons attached to a specific item. They can reference an ingredient from the inventory (`ingrediente_id`) or be entered as free text (`descripcion`). Each extra has a price and quantity, and its cost is rolled up into the parent item's `subtotal`.
+
+---
+
+## `POST /api/transacciones/:id/items/:itemId/extras`
+
+Adds an extra to an item. You must supply either `ingrediente_id` or `descripcion` — not both, not neither.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+| Content-Type | application/json | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+| itemId | number | The item ID |
+
+#### Body
+
+<ParamField body="ingrediente_id" type="string">
+  ID of a known inventory ingredient. Mutually exclusive with `descripcion`.
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Free-text description of the extra (e.g. `"Extra queso"`). Mutually exclusive with `ingrediente_id`.
+</ParamField>
+
+<Warning>
+  You must provide exactly one of `ingrediente_id` or `descripcion`. Providing neither returns a `400` error.
+</Warning>
+
+<ParamField body="precio" type="number" required>
+  Price of the extra. Must be ≥ 0.
+</ParamField>
+
+<ParamField body="cantidad" type="number">
+  Quantity of the extra. Defaults to `1`. Must be ≥ 0.01.
+</ParamField>
+
+### Response
+
+#### Success (201)
+
+<ResponseField name="id" type="number">
+  Auto-generated extra ID.
+</ResponseField>
+
+<ResponseField name="detalle_item_id" type="number">
+  Parent item ID.
+</ResponseField>
+
+<ResponseField name="ingrediente_id" type="string | null">
+  Associated ingredient ID, if provided.
+</ResponseField>
+
+<ResponseField name="descripcion" type="string | null">
+  Free-text description, if provided.
+</ResponseField>
+
+<ResponseField name="precio" type="string">
+  Price as a decimal string.
+</ResponseField>
+
+<ResponseField name="cantidad" type="string">
+  Quantity as a decimal string.
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Neither `ingrediente_id` nor `descripcion` provided |
+| 401 | Unauthorized |
+| 404 | Transaction, item, or ingredient not found |
+
+---
+
+## `GET /api/transacciones/:id/items/:itemId/extras`
+
+Returns all active extras for the specified item, enriched with the ingredient name when an `ingrediente_id` is present.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+| itemId | number | The item ID |
+
+### Response
+
+#### Success (200)
+
+An array of extra objects:
+
+<ResponseField name="[].id" type="number">Extra ID.</ResponseField>
+<ResponseField name="[].detalle_item_id" type="number">Parent item ID.</ResponseField>
+<ResponseField name="[].ingrediente_id" type="string | null">Ingredient ID.</ResponseField>
+<ResponseField name="[].descripcion" type="string | null">Free-text description.</ResponseField>
+<ResponseField name="[].nombre" type="string">Resolved ingredient name, or the `descripcion` value if no ingredient.</ResponseField>
+<ResponseField name="[].precio" type="string">Price as a decimal string.</ResponseField>
+<ResponseField name="[].cantidad" type="string">Quantity as a decimal string.</ResponseField>
+
+---
+
+## `DELETE /api/transacciones/:id/items/:itemId/extras/:extraId`
+
+Soft-deletes an extra. The parent item's `subtotal` and the transaction's `monto_total` are recalculated automatically.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+| itemId | number | The item ID |
+| extraId | number | The extra ID |
+
+### Response
+
+#### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message.
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 404 | Transaction, item, or extra not found |
+
+---
+
+## Example
+
+```bash
+# Add a free-text extra to item 7 on transaction 42
+curl -X POST http://localhost:3000/api/transacciones/42/items/7/extras \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"descripcion": "Extra queso", "precio": 5.00, "cantidad": 1}'
+```
+
+```json
+{
+  "id": 3,
+  "detalle_item_id": 7,
+  "ingrediente_id": null,
+  "descripcion": "Extra queso",
+  "precio": "5.00",
+  "cantidad": "1",
+  "creado_en": "2026-03-18T14:32:00.000Z",
+  "actualizado_en": "2026-03-18T14:32:00.000Z",
+  "borrado_en": null
+}
+```
+
+```bash
+# Add an ingredient-linked extra
+curl -X POST http://localhost:3000/api/transacciones/42/items/7/extras \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"ingrediente_id": "ing_abc123", "precio": 3.50, "cantidad": 2}'
+```
+
+```bash
+# List all extras on item 7
+curl http://localhost:3000/api/transacciones/42/items/7/extras \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```bash
+# Remove extra 3
+curl -X DELETE http://localhost:3000/api/transacciones/42/items/7/extras/3 \
+  -H "Authorization: Bearer $TOKEN"
+```

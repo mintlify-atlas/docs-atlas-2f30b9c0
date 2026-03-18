@@ -1,0 +1,58 @@
+---
+title: "Delete transaction"
+description: "DELETE /api/transacciones/:id — Soft-delete a transaction (admin only)"
+---
+
+## `DELETE /api/transacciones/:id`
+
+Soft-deletes a transaction by setting its `borrado_en` timestamp. The record is not removed from the database and will no longer appear in list or get queries.
+
+**Authentication:** Required
+**Required role:** `admin`
+
+<Warning>
+  This action requires the `admin` role. Users with the `cajero` role will receive a `403 Forbidden` response.
+</Warning>
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+## Response
+
+### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message including the deleted transaction's ID.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 403 | Forbidden — user does not have the `admin` role |
+| 404 | Transaction not found |
+
+## Example
+
+```bash
+curl -X DELETE http://localhost:3000/api/transacciones/42 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```json
+{
+  "message": "Transacción con ID 42 eliminada exitosamente (soft delete)"
+}
+```

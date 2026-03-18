@@ -1,0 +1,227 @@
+---
+title: "Open register"
+description: "POST /api/caja/abrir — Open the day's cash register with an initial denomination count"
+---
+
+## `POST /api/caja/abrir`
+
+Opens the cash register for the current shift. You must provide a denomination count; the server computes `monto_inicial` from those counts automatically. Only one register can be open at a time.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin` or `cajero`
+
+## Request
+
+### Body
+
+All denomination fields are optional and default to `0`. Omitting a field is the same as passing `0`.
+
+<ParamField body="b200" type="integer">
+  Number of 200 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="b100" type="integer">
+  Number of 100 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="b50" type="integer">
+  Number of 50 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="b20" type="integer">
+  Number of 20 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="b10" type="integer">
+  Number of 10 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="b5" type="integer">
+  Number of 5 BOB bills (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="m2" type="integer">
+  Number of 2 BOB coins (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="m1" type="integer">
+  Number of 1 BOB coins (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="m050" type="integer">
+  Number of 0.50 BOB coins (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="m020" type="integer">
+  Number of 0.20 BOB coins (default: 0, min: 0)
+</ParamField>
+
+<ParamField body="m010" type="integer">
+  Number of 0.10 BOB coins (default: 0, min: 0)
+</ParamField>
+
+### Denomination values
+
+| Field | Value (BOB) | Type |
+|---|---|---|
+| `b200` | 200.00 | Bill |
+| `b100` | 100.00 | Bill |
+| `b50` | 50.00 | Bill |
+| `b20` | 20.00 | Bill |
+| `b10` | 10.00 | Bill |
+| `b5` | 5.00 | Bill |
+| `m2` | 2.00 | Coin |
+| `m1` | 1.00 | Coin |
+| `m050` | 0.50 | Coin |
+| `m020` | 0.20 | Coin |
+| `m010` | 0.10 | Coin |
+
+## Response
+
+### Success (201)
+
+Returns the newly created `caja_turno` record.
+
+<ResponseField name="id" type="number">
+  Auto-incremented register ID
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  Opening date in `YYYY-MM-DD` format
+</ResponseField>
+
+<ResponseField name="hora_apertura" type="string">
+  Opening timestamp (ISO 8601 with timezone)
+</ResponseField>
+
+<ResponseField name="hora_cierre" type="string | null">
+  Closing timestamp — `null` while the register is open
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string">
+  ID of the user who opened the register
+</ResponseField>
+
+<ResponseField name="monto_inicial" type="number">
+  Computed opening cash amount in BOB
+</ResponseField>
+
+<ResponseField name="b200" type="number">
+  Count of 200 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="b100" type="number">
+  Count of 100 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="b50" type="number">
+  Count of 50 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="b20" type="number">
+  Count of 20 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="b10" type="number">
+  Count of 10 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="b5" type="number">
+  Count of 5 BOB bills recorded at opening
+</ResponseField>
+
+<ResponseField name="m2" type="number">
+  Count of 2 BOB coins recorded at opening
+</ResponseField>
+
+<ResponseField name="m1" type="number">
+  Count of 1 BOB coins recorded at opening
+</ResponseField>
+
+<ResponseField name="m050" type="number">
+  Count of 0.50 BOB coins recorded at opening
+</ResponseField>
+
+<ResponseField name="m020" type="number">
+  Count of 0.20 BOB coins recorded at opening
+</ResponseField>
+
+<ResponseField name="m010" type="number">
+  Count of 0.10 BOB coins recorded at opening
+</ResponseField>
+
+<ResponseField name="ventas_efectivo" type="number">
+  Cash sales accumulated — `0` at opening
+</ResponseField>
+
+<ResponseField name="ventas_qr" type="number">
+  QR sales accumulated — `0` at opening
+</ResponseField>
+
+<ResponseField name="total_salidas" type="number">
+  Total expenses recorded — `0` at opening
+</ResponseField>
+
+<ResponseField name="cerrada" type="boolean">
+  `false` — the register is open
+</ResponseField>
+
+<ResponseField name="cierre_obs" type="string | null">
+  Closing observations — `null` while open
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+| 409 | A register is already open; close it before opening a new one |
+
+## Example
+
+```bash
+curl -X POST https://api.example.com/api/caja/abrir \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "b200": 2,
+    "b100": 1,
+    "b50": 2,
+    "b20": 5,
+    "b10": 10,
+    "b5": 10,
+    "m2": 20,
+    "m1": 20,
+    "m050": 10,
+    "m020": 10,
+    "m010": 10
+  }'
+```
+
+```json
+{
+  "id": 1,
+  "fecha": "2026-02-04",
+  "hora_apertura": "2026-02-04T08:00:00.000Z",
+  "hora_cierre": null,
+  "usuario_id": "usr_abc123",
+  "monto_inicial": 500.00,
+  "b200": 2,
+  "b100": 1,
+  "b50": 2,
+  "b20": 5,
+  "b10": 10,
+  "b5": 10,
+  "m2": 20,
+  "m1": 20,
+  "m050": 10,
+  "m020": 10,
+  "m010": 10,
+  "ventas_efectivo": 0,
+  "ventas_qr": 0,
+  "total_salidas": 0,
+  "cerrada": false,
+  "cierre_obs": null
+}
+```

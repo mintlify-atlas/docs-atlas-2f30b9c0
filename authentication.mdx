@@ -1,0 +1,162 @@
+---
+title: "Authentication"
+description: "JWT-based authentication with role-based access control"
+---
+
+The Restaurante API uses [JSON Web Tokens (JWT)](https://jwt.io) for authentication. You log in once with your credentials to receive a short-lived token, then include that token in every subsequent request.
+
+## Login flow
+
+Send a `POST` request to `/api/auth/login` with your username and password. The API validates the credentials against the database (passwords are hashed with bcrypt), and returns a signed JWT along with basic user information.
+
+### Request
+
+`POST /api/auth/login`
+
+<ParamField body="nombre_usuario" type="string" required>
+  The user's login handle. Must be between 3 and 30 characters.
+</ParamField>
+
+<ParamField body="contrasena" type="string" required>
+  The user's password. Must be at least 6 characters.
+</ParamField>
+
+```bash
+curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"nombre_usuario": "admin", "contrasena": "Admin123!"}'
+```
+
+### Response
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "usuario": {
+    "id": "usr_1234567890",
+    "nombre": "Administrador",
+    "nombre_usuario": "admin",
+    "rol": "admin"
+  }
+}
+```
+
+Store the `access_token` — you'll need it for every protected endpoint.
+
+## Using the token
+
+Include the token in the `Authorization` header as a Bearer token on all subsequent requests:
+
+```bash
+curl -s http://localhost:3000/api/auth/profile \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+A full example — log in, capture the token, then fetch the profile:
+
+```bash
+# 1. Log in and save the token
+TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"nombre_usuario": "admin", "contrasena": "Admin123!"}' \
+  | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+
+# 2. Use the token to fetch the authenticated user's profile
+curl -s http://localhost:3000/api/auth/profile \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+<Note>
+  Tokens are extracted from the `Authorization: Bearer <token>` header only. The API does not support cookie-based or query-parameter authentication.
+</Note>
+
+## Profile endpoint
+
+`GET /api/auth/profile` returns the currently authenticated user's information. This is useful for confirming that a token is still valid and for retrieving the user's role.
+
+```json
+{
+  "id": "usr_1234567890",
+  "nombre": "Administrador",
+  "nombre_usuario": "admin",
+  "rol": "admin"
+}
+```
+
+## Roles
+
+The API enforces two roles:
+
+| Role | Access level |
+|---|---|
+| `admin` | Full access to all endpoints, including administrative operations |
+| `cajero` | Operational access for point-of-sale tasks |
+
+Role information is embedded in the JWT payload (`rol` claim) and verified on each request by the `JwtStrategy`. The `RolesGuard` then checks whether the authenticated user's role matches the roles required by a given endpoint.
+
+## Protecting endpoints with roles
+
+In the NestJS codebase, endpoints are protected by combining `AuthGuard('jwt')` with `RolesGuard` and the `@Roles()` decorator:
+
+```typescript
+import { UseGuards, Get } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './decorators/roles.decorator';
+
+@Get('admin-only')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin')
+async soloAdmin() {
+  return { mensaje: 'Solo admins pueden ver esto' };
+}
+```
+
+You can permit multiple roles by passing additional arguments to `@Roles()`:
+
+```typescript
+@Get('operaciones')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles('admin', 'cajero')
+async operaciones() {
+  return { mensaje: 'Admins y cajeros pueden acceder' };
+}
+```
+
+<Warning>
+  Always apply `AuthGuard('jwt')` **before** `RolesGuard` in the `@UseGuards()` decorator list. `RolesGuard` reads the user object that `AuthGuard('jwt')` populates on the request — if the JWT guard runs second, `req.user` will be undefined and role checks will always fail.
+</Warning>
+
+## Error responses
+
+### 401 Unauthorized
+
+Returned when authentication fails — either no token was provided, the token is malformed, or the token has expired.
+
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+Common causes:
+- Missing `Authorization` header
+- Expired JWT
+- Invalid signature (e.g. wrong `JWT_SECRET`)
+- Credentials are incorrect on login
+
+### 403 Forbidden
+
+Returned when the token is valid but the user's role does not satisfy the `@Roles()` requirement on the endpoint.
+
+```json
+{
+  "statusCode": 403,
+  "message": "Forbidden resource"
+}
+```
+
+<Note>
+  A `403` means the user is authenticated but not authorized. A `401` means the user could not be authenticated at all. If you are receiving a `403` unexpectedly, verify that the `rol` field in your JWT payload matches the role expected by the endpoint.
+</Note>

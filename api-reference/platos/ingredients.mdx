@@ -1,0 +1,273 @@
+---
+title: "Manage dish ingredients"
+description: "Endpoints for managing the recipe (ingredient list) of a dish"
+---
+
+These endpoints let you define and modify the recipe for a dish — the set of ingredients and their required quantities. All endpoints require the dish `id` as a path parameter.
+
+**Authentication:** Bearer JWT required
+
+<Note>
+  If you add an ingredient that was previously removed from the dish, the system restores the soft-deleted record and updates its quantity rather than creating a duplicate entry.
+</Note>
+
+---
+
+## `POST /api/platos/:id/ingredientes`
+
+Adds an ingredient to a dish's recipe.
+
+**Required role:** `admin`
+
+### Request
+
+#### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid, 10 characters)
+</ParamField>
+
+#### Body
+
+<ParamField body="ingrediente_id" type="string" required>
+  The ID of the ingredient to add (must exist and not be soft-deleted)
+</ParamField>
+
+<ParamField body="cantidad" type="number" required>
+  Required quantity of this ingredient per serving (min: 0.01)
+</ParamField>
+
+### Response
+
+#### Success (201)
+
+<ResponseField name="plato_id" type="string">
+  Dish ID
+</ResponseField>
+
+<ResponseField name="ingrediente_id" type="string">
+  Ingredient ID
+</ResponseField>
+
+<ResponseField name="cantidad" type="number">
+  Required quantity per serving
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Creation timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Last update timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string | null">
+  Soft-delete timestamp — `null` for active records
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Ingredient is already added to this dish |
+| 401 | Unauthorized |
+| 403 | Forbidden — role is not `admin` |
+| 404 | Dish or ingredient not found |
+
+### Example
+
+```bash
+curl -X POST https://api.example.com/api/platos/aB3dEfGhIj/ingredientes \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ingrediente_id": "abc123xyz",
+    "cantidad": 2.5
+  }'
+```
+
+```json
+{
+  "plato_id": "aB3dEfGhIj",
+  "ingrediente_id": "abc123xyz",
+  "cantidad": 2.5,
+  "creado_en": "2026-02-04T09:00:00.000Z",
+  "actualizado_en": "2026-02-04T09:00:00.000Z",
+  "borrado_en": null
+}
+```
+
+---
+
+## `GET /api/platos/:id/ingredientes`
+
+Returns the list of active ingredients in a dish's recipe, joined with ingredient metadata.
+
+**Required role:** any authenticated user
+
+### Request
+
+#### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid, 10 characters)
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+An array of ingredient entries with joined ingredient data.
+
+<ResponseField name="[].ingrediente_id" type="string">
+  Ingredient ID
+</ResponseField>
+
+<ResponseField name="[].cantidad" type="number">
+  Required quantity per serving
+</ResponseField>
+
+<ResponseField name="[].nombre" type="string">
+  Ingredient name (joined from `ingredientes` table)
+</ResponseField>
+
+<ResponseField name="[].unidad" type="string">
+  Unit of measurement (joined from `ingredientes` table), e.g. `"kg"`, `"lt"`, `"unidad"`
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 404 | Dish not found |
+
+### Example
+
+```bash
+curl https://api.example.com/api/platos/aB3dEfGhIj/ingredientes \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "ingrediente_id": "abc123xyz",
+    "cantidad": 2.5,
+    "nombre": "Maní tostado",
+    "unidad": "kg"
+  },
+  {
+    "ingrediente_id": "def456uvw",
+    "cantidad": 1.0,
+    "nombre": "Papa",
+    "unidad": "kg"
+  }
+]
+```
+
+---
+
+## `PATCH /api/platos/:id/ingredientes/:ingredienteId`
+
+Updates the quantity of a specific ingredient in a dish's recipe.
+
+**Required role:** `admin`
+
+### Request
+
+#### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid, 10 characters)
+</ParamField>
+
+<ParamField path="ingredienteId" type="string" required>
+  The ingredient ID
+</ParamField>
+
+#### Body
+
+<ParamField body="cantidad" type="number" required>
+  New required quantity per serving (min: 0.01)
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message: `"Cantidad de ingrediente actualizada correctamente"`
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 403 | Forbidden — role is not `admin` |
+| 404 | Dish not found or ingredient not in dish's recipe |
+
+### Example
+
+```bash
+curl -X PATCH https://api.example.com/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "cantidad": 3.0 }'
+```
+
+```json
+{
+  "message": "Cantidad de ingrediente actualizada correctamente"
+}
+```
+
+---
+
+## `DELETE /api/platos/:id/ingredientes/:ingredienteId`
+
+Removes an ingredient from a dish's recipe (soft delete on the `plato_ingredientes` record).
+
+**Required role:** `admin`
+
+### Request
+
+#### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid, 10 characters)
+</ParamField>
+
+<ParamField path="ingredienteId" type="string" required>
+  The ingredient ID to remove
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message: `"Ingrediente removido del plato exitosamente"`
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 403 | Forbidden — role is not `admin` |
+| 404 | Dish not found or ingredient not in dish's recipe |
+
+### Example
+
+```bash
+curl -X DELETE https://api.example.com/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "message": "Ingrediente removido del plato exitosamente"
+}
+```

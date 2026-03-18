@@ -1,0 +1,182 @@
+---
+title: "Register and list expenses"
+description: "POST /api/caja/gastos and GET /api/caja/gastos/historial — Record a register expense and browse expense history"
+---
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin` or `cajero`
+
+---
+
+## `POST /api/caja/gastos`
+
+Records an expense against the currently open register. Cash expenses (`efectivo`) reduce the physical cash on hand; QR expenses do not affect the cash drawer balance.
+
+### Request
+
+#### Body
+
+<ParamField body="descripcion" type="string" required>
+  Description of the expense, e.g. `"Compra de gas para cocina"`. Maximum 200 characters.
+</ParamField>
+
+<ParamField body="metodo_pago" type="string" required>
+  Payment method. Allowed values: `efectivo`, `qr`
+</ParamField>
+
+<ParamField body="monto" type="number" required>
+  Expense amount in BOB (min: 0.01)
+</ParamField>
+
+### Response
+
+#### Success (201)
+
+<ResponseField name="id" type="number">
+  Auto-incremented expense ID
+</ResponseField>
+
+<ResponseField name="caja_id" type="number">
+  ID of the register this expense is linked to
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string | null">
+  ID of the user who recorded the expense
+</ResponseField>
+
+<ResponseField name="descripcion" type="string">
+  Expense description
+</ResponseField>
+
+<ResponseField name="metodo_pago" type="string">
+  Payment method: `efectivo` or `qr`
+</ResponseField>
+
+<ResponseField name="monto" type="number">
+  Expense amount (BOB)
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Timestamp when the expense was created (ISO 8601)
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string | null">
+  Timestamp of last update
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string | null">
+  Soft-delete timestamp — `null` for active records
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | No register is currently open |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+
+### Example
+
+```bash
+curl -X POST https://api.example.com/api/caja/gastos \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "descripcion": "Compra de gas para cocina",
+    "metodo_pago": "efectivo",
+    "monto": 50.00
+  }'
+```
+
+```json
+{
+  "id": 1,
+  "caja_id": 1,
+  "usuario_id": "usr_abc123",
+  "descripcion": "Compra de gas para cocina",
+  "metodo_pago": "efectivo",
+  "monto": 50.00,
+  "creado_en": "2026-02-04T10:30:00.000Z",
+  "actualizado_en": "2026-02-04T10:30:00.000Z",
+  "borrado_en": null
+}
+```
+
+---
+
+## `GET /api/caja/gastos/historial`
+
+Returns a list of the most recent expenses across all registers, ordered by creation date descending.
+
+### Request
+
+#### Query parameters
+
+<ParamField query="limit" type="number">
+  Maximum number of records to return (default: 50)
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+Returns an array of expense objects. Each item has the same shape as the `POST /api/caja/gastos` success response.
+
+<ResponseField name="[].id" type="number">
+  Expense record ID
+</ResponseField>
+
+<ResponseField name="[].caja_id" type="number">
+  Register ID this expense belongs to
+</ResponseField>
+
+<ResponseField name="[].usuario_id" type="string | null">
+  ID of the user who recorded the expense
+</ResponseField>
+
+<ResponseField name="[].descripcion" type="string">
+  Expense description
+</ResponseField>
+
+<ResponseField name="[].metodo_pago" type="string">
+  Payment method: `efectivo` or `qr`
+</ResponseField>
+
+<ResponseField name="[].monto" type="number">
+  Expense amount (BOB)
+</ResponseField>
+
+<ResponseField name="[].creado_en" type="string">
+  Timestamp when the expense was created
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+
+### Example
+
+```bash
+curl "https://api.example.com/api/caja/gastos/historial?limit=10" \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "id": 10,
+    "caja_id": 3,
+    "usuario_id": "usr_abc123",
+    "descripcion": "Compra de insumos",
+    "metodo_pago": "efectivo",
+    "monto": 150.50,
+    "creado_en": "2026-02-04T15:30:00.000Z",
+    "actualizado_en": "2026-02-04T15:30:00.000Z",
+    "borrado_en": null
+  }
+]
+```

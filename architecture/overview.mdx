@@ -1,0 +1,159 @@
+---
+title: "Architecture overview"
+description: "NestJS module structure and request lifecycle for Restaurante API"
+---
+
+The Restaurante API is built with NestJS, backed by PostgreSQL 17, and uses Drizzle ORM for all database access. Every HTTP route is served under the `/api` global prefix, and a single Socket.IO gateway handles real-time kitchen display.
+
+## Layered architecture
+
+Each feature module follows a strict three-layer pattern:
+
+```
+HTTP Request
+    │
+    ▼
+ Controller          ← validates input (ValidationPipe), maps routes
+    │
+    ▼
+ Service             ← business logic, orchestrates queries
+    │
+    ▼
+ Drizzle ORM         ← type-safe query builder
+    │
+    ▼
+ PostgreSQL 17       ← persistent storage
+```
+
+## Modules
+
+<CardGroup cols={2}>
+  <Card title="auth" icon="lock">
+    JWT-based authentication. Issues and validates bearer tokens used by every protected route.
+  </Card>
+  <Card title="usuarios" icon="user">
+    User management. Creates, updates, and soft-deletes staff accounts with roles (e.g. `cajero`).
+  </Card>
+  <Card title="caja" icon="cash-register">
+    Cash register shifts (`caja_turno`). Tracks opening/closing amounts, bill denominations, and cash-out records.
+  </Card>
+  <Card title="productos" icon="box">
+    Non-dish retail products with stock tracking and unit pricing.
+  </Card>
+  <Card title="ingredientes" icon="carrot">
+    Ingredient inventory with quantity and minimum-stock thresholds.
+  </Card>
+  <Card title="platos" icon="utensils">
+    Menu dishes and their ingredient compositions (`plato_ingredientes`).
+  </Card>
+  <Card title="transacciones" icon="receipt">
+    Sales transactions, order status, kitchen state, line items, extras, and payments. Also owns the `CocinaGateway` WebSocket.
+  </Card>
+  <Card title="dashboard" icon="chart-bar">
+    Aggregated reporting queries used by the front-end dashboard.
+  </Card>
+</CardGroup>
+
+### Module responsibilities
+
+| Module | Controller routes | Key tables |
+|---|---|---|
+| `auth` | `POST /api/auth/login` | `usuarios` |
+| `usuarios` | `GET/POST/PATCH/DELETE /api/usuarios` | `usuarios` |
+| `caja` | `GET/POST/PATCH /api/caja` | `caja_turno`, `gastos_caja` |
+| `productos` | `GET/POST/PATCH/DELETE /api/productos` | `productos` |
+| `ingredientes` | `GET/POST/PATCH/DELETE /api/ingredientes` | `ingredientes` |
+| `platos` | `GET/POST/PATCH/DELETE /api/platos` | `platos`, `plato_ingredientes` |
+| `transacciones` | `GET/POST/PATCH/DELETE /api/transacciones` | `transacciones`, `detalle_items`, `detalle_item_extras`, `pagos` |
+| `dashboard` | `GET /api/dashboard/*` | all tables (read-only) |
+
+## NestJS module structure
+
+The root `AppModule` imports all feature modules and the shared infrastructure modules:
+
+```typescript src/app.module.ts
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { DrizzleModule } from './drizzle/drizzle.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsuariosModule } from './modules/usuarios/usuarios.module';
+import { CajaModule } from './modules/caja/caja.module';
+import { ProductosModule } from './modules/productos/productos.module';
+import { IngredientesModule } from './modules/ingredientes/ingredientes.module';
+import { PlatosModule } from './modules/platos/platos.module';
+import { TransaccionesModule } from './modules/transacciones/transacciones.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    DrizzleModule,
+    AuthModule,
+    UsuariosModule,
+    CajaModule,
+    ProductosModule,
+    IngredientesModule,
+    PlatosModule,
+    TransaccionesModule,
+    DashboardModule,
+  ],
+})
+export class AppModule {}
+```
+
+## Global configuration
+
+### Global prefix
+
+All routes are prefixed with `/api`:
+
+```typescript
+app.setGlobalPrefix('api');
+```
+
+### CORS
+
+The server accepts requests from the following origins:
+
+```typescript src/main.ts
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://charqueria-oruro.vercel.app',
+  'http://localhost:9000',
+];
+
+app.enableCors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+```
+
+<Warning>
+  The WebSocket gateway at `/cocina` uses a separate CORS configuration (`origin: '*'`). See [WebSocket gateway](/architecture/websockets) for details.
+</Warning>
+
+### Global validation pipe
+
+Every incoming request body is validated and transformed before it reaches a controller:
+
+```typescript
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,            // strips undeclared properties
+    forbidNonWhitelisted: true, // throws on undeclared properties
+    transform: true,            // coerces types automatically
+  }),
+);
+```
+
+### Date formatter interceptor
+
+All API responses pass through the global `DateFormatterInterceptor` (`src/common/interceptors/date-formatter.interceptor.ts`). It recursively walks every response object and formats any date/timestamp field into the `HH:mm - dd/MM/yyyy` pattern using the **America/La_Paz** timezone.
+
+The timezone is also set at process level so that Node.js date operations default to Bolivia time:
+
+```typescript
+process.env.TZ = 'America/La_Paz';
+```

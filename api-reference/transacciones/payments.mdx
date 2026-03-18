@@ -1,0 +1,173 @@
+---
+title: "Manage payments"
+description: "Register and list payments for a transaction"
+---
+
+Payments are recorded against a transaction to track what has been collected. A transaction can receive multiple partial payments. When `monto_pagado` reaches `monto_total` (within a 0.01 tolerance), the transaction automatically transitions to `cerrado` — provided the kitchen status is also `terminado`.
+
+<Note>
+  Payments are also recorded in the associated `caja_turno` record automatically, incrementing either `ventas_efectivo` or `ventas_qr`.
+</Note>
+
+---
+
+## `POST /api/transacciones/:id/pagos`
+
+Registers a payment for the transaction.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+| Content-Type | application/json | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+#### Body
+
+<ParamField body="metodo_pago" type="string" required>
+  Payment method. Must be `efectivo` or `qr`.
+</ParamField>
+
+<ParamField body="monto" type="number" required>
+  Amount to apply to this payment. Must be ≥ 0.01 and cannot exceed the current `monto_pendiente`.
+</ParamField>
+
+<ParamField body="monto_recibido" type="number">
+  Cash received from the customer. Required when `metodo_pago` is `efectivo`. Must be ≥ `monto`.
+</ParamField>
+
+<ParamField body="referencia_qr" type="string">
+  QR transaction reference code. Recommended when `metodo_pago` is `qr`.
+</ParamField>
+
+### Response
+
+#### Success (201)
+
+<ResponseField name="id" type="number">
+  Auto-generated payment ID.
+</ResponseField>
+
+<ResponseField name="transaccion_id" type="number">
+  Parent transaction ID.
+</ResponseField>
+
+<ResponseField name="metodo_pago" type="string">
+  Payment method used (`efectivo` or `qr`).
+</ResponseField>
+
+<ResponseField name="monto" type="string">
+  Payment amount as a decimal string.
+</ResponseField>
+
+<ResponseField name="monto_recibido" type="string | null">
+  Cash received, for `efectivo` payments.
+</ResponseField>
+
+<ResponseField name="referencia_qr" type="string | null">
+  QR reference code, for `qr` payments.
+</ResponseField>
+
+<ResponseField name="cambio" type="string">
+  Change to return to the customer (`monto_recibido - monto`). Always `"0.00"` for QR payments.
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string">
+  ID of the user who registered the payment.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Payment timestamp.
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Transaction already fully paid |
+| 400 | `monto` exceeds `monto_pendiente` |
+| 400 | `monto_recibido` missing or less than `monto` when using `efectivo` |
+| 401 | Unauthorized |
+| 404 | Transaction not found |
+
+---
+
+## `GET /api/transacciones/:id/pagos`
+
+Returns all active payments for the specified transaction.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+### Response
+
+#### Success (200)
+
+An array of payment objects (same shape as the `POST` response minus `cambio`).
+
+---
+
+## Example — cash payment
+
+```bash
+curl -X POST http://localhost:3000/api/transacciones/42/pagos \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"metodo_pago": "efectivo", "monto": 85.00, "monto_recibido": 100.00}'
+```
+
+```json
+{
+  "id": 5,
+  "transaccion_id": 42,
+  "metodo_pago": "efectivo",
+  "monto": "85.00",
+  "monto_recibido": "100.00",
+  "referencia_qr": null,
+  "cambio": "15.00",
+  "usuario_id": "usr_1234567890",
+  "creado_en": "2026-03-18T15:00:00.000Z",
+  "actualizado_en": "2026-03-18T15:00:00.000Z",
+  "borrado_en": null
+}
+```
+
+## Example — QR payment
+
+```bash
+curl -X POST http://localhost:3000/api/transacciones/42/pagos \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"metodo_pago": "qr", "monto": 85.00, "referencia_qr": "QR-123456789"}'
+```
+
+```bash
+# List payments for transaction 42
+curl http://localhost:3000/api/transacciones/42/pagos \
+  -H "Authorization: Bearer $TOKEN"
+```

@@ -1,0 +1,165 @@
+---
+title: "Create transaction"
+description: "POST /api/transacciones — Open a new transaction (order)"
+---
+
+## `POST /api/transacciones`
+
+Creates a new transaction. If a cash register (`caja`) is currently open, it is automatically associated with the transaction. If you provide a `caja_id`, it must match the currently open register.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+<Note>
+  You do not need to open a `caja` before creating a transaction. When no register is open the transaction is created without a `caja_id`.
+</Note>
+
+## Request
+
+### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+| Content-Type | application/json | Yes |
+
+### Body
+
+<ParamField body="nro_reg" type="number" required>
+  Sequential registration number. Must be ≥ 1.
+</ParamField>
+
+<ParamField body="concepto" type="string" required>
+  Description of the order (e.g. `"Pedido mesa 5"`).
+</ParamField>
+
+<ParamField body="tipo" type="string">
+  Transaction type. Defaults to `"venta"`.
+</ParamField>
+
+<ParamField body="mesa" type="string">
+  Service location descriptor: `"Mesa 5"`, `"Para llevar"`, `"Delivery"`, etc.
+</ParamField>
+
+<ParamField body="cliente" type="string">
+  Customer name.
+</ParamField>
+
+<ParamField body="estado" type="string">
+  Initial status. One of `pendiente`, `abierto`, `cerrado`. Defaults to `pendiente`.
+</ParamField>
+
+<ParamField body="caja_id" type="number">
+  ID of the cash register to associate. If omitted, the currently open register is used automatically.
+</ParamField>
+
+## Response
+
+### Success (201)
+
+<ResponseField name="id" type="number">
+  Auto-generated transaction ID.
+</ResponseField>
+
+<ResponseField name="nro_reg" type="number">
+  Sequential registration number.
+</ResponseField>
+
+<ResponseField name="concepto" type="string">
+  Transaction description.
+</ResponseField>
+
+<ResponseField name="tipo" type="string">
+  Transaction type.
+</ResponseField>
+
+<ResponseField name="mesa" type="string | null">
+  Service location.
+</ResponseField>
+
+<ResponseField name="cliente" type="string | null">
+  Customer name.
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Current status (`pendiente`, `abierto`, or `cerrado`).
+</ResponseField>
+
+<ResponseField name="estado_cocina" type="string">
+  Kitchen status (`pendiente` or `terminado`).
+</ResponseField>
+
+<ResponseField name="monto_total" type="string">
+  Total amount as a decimal string. Starts at `"0"`.
+</ResponseField>
+
+<ResponseField name="monto_pagado" type="string">
+  Amount already paid as a decimal string. Starts at `"0"`.
+</ResponseField>
+
+<ResponseField name="monto_pendiente" type="string">
+  Calculated outstanding amount (`monto_total - monto_pagado`).
+</ResponseField>
+
+<ResponseField name="caja_id" type="number | null">
+  Associated register ID, if any.
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string">
+  ID of the user who created the transaction.
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  Creation date (`YYYY-MM-DD`).
+</ResponseField>
+
+<ResponseField name="hora" type="string">
+  Creation timestamp with timezone.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string">
+  Full creation timestamp.
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string">
+  Last update timestamp.
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | `caja_id` does not match the currently open register |
+| 401 | Unauthorized |
+
+## Example
+
+```bash
+curl -X POST http://localhost:3000/api/transacciones \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"nro_reg": 1, "concepto": "Pedido mesa 5", "mesa": "Mesa 5", "cliente": "Juan Pérez"}'
+```
+
+```json
+{
+  "id": 42,
+  "nro_reg": 1,
+  "concepto": "Pedido mesa 5",
+  "tipo": "venta",
+  "mesa": "Mesa 5",
+  "cliente": "Juan Pérez",
+  "estado": "pendiente",
+  "estado_cocina": "pendiente",
+  "monto_total": "0",
+  "monto_pagado": "0",
+  "monto_pendiente": "0.00",
+  "caja_id": 3,
+  "usuario_id": "usr_1234567890",
+  "fecha": "2026-03-18",
+  "hora": "2026-03-18T14:30:00.000Z",
+  "creado_en": "2026-03-18T14:30:00.000Z",
+  "actualizado_en": "2026-03-18T14:30:00.000Z",
+  "borrado_en": null
+}
+```

@@ -1,0 +1,187 @@
+---
+title: "Cash register management"
+description: "Opening, managing, and closing the daily cash register"
+---
+
+The cash register (`caja_turno`) tracks all money movement during a shift: the initial float, cash and QR sales from transactions, and any cash-out expenses. At the end of the shift, you count the physical cash and the API calculates whether you have an overage or shortage.
+
+<Warning>
+  Only one caja can be open at a time. Attempting to open a second caja while one is already open returns a `409 Conflict` error. You must close the current caja before opening a new one.
+</Warning>
+
+## Shift workflow
+
+<Steps>
+  <Step title="Open the cash register">
+    At the start of each shift, count the physical cash in the drawer and submit denomination counts. The API calculates `monto_inicial` from these counts.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/caja/abrir \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "b200": 2,
+        "b100": 1,
+        "b50": 4,
+        "b20": 5,
+        "b10": 10,
+        "b5": 10,
+        "m2": 20,
+        "m1": 20,
+        "m050": 10,
+        "m020": 0,
+        "m010": 0
+      }'
+    ```
+
+    All denomination fields are optional and default to `0`. The denomination fields map to the following values:
+
+    | Field | Bill / coin |
+    |---|---|
+    | `b200` | Bs 200 bill |
+    | `b100` | Bs 100 bill |
+    | `b50` | Bs 50 bill |
+    | `b20` | Bs 20 bill |
+    | `b10` | Bs 10 bill |
+    | `b5` | Bs 5 bill |
+    | `m2` | Bs 2 coin |
+    | `m1` | Bs 1 coin |
+    | `m050` | Bs 0.50 coin |
+    | `m020` | Bs 0.20 coin |
+    | `m010` | Bs 0.10 coin |
+
+    The response includes the new caja record with its `id` and the calculated `monto_inicial`.
+
+    ```json
+    {
+      "id": 5,
+      "fecha": "2026-03-18",
+      "hora_apertura": "2026-03-18T08:00:00.000Z",
+      "usuario_id": "usr_abc123",
+      "monto_inicial": 500.0,
+      "cerrada": false
+    }
+    ```
+  </Step>
+
+  <Step title="Process transactions throughout the shift">
+    As orders are created and paid, the API automatically updates `ventas_efectivo` and `ventas_qr` on the open caja. You do not need to call any caja endpoint for this — it happens inside the payment flow.
+
+    To check the current open caja at any time:
+
+    ```bash
+    curl http://localhost:3000/api/caja/actual \
+      -H "Authorization: Bearer $TOKEN"
+    ```
+
+    This returns the caja record or `null` if no caja is open.
+  </Step>
+
+  <Step title="Record cash-out expenses">
+    Record any money leaving the register — supplies, cleaning, gas, etc. — as a gasto. Specify whether payment left as `efectivo` or `qr`.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/caja/gastos \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "descripcion": "Compra de gas para cocina",
+        "metodo_pago": "efectivo",
+        "monto": 50.00
+      }'
+    ```
+
+    Each gasto increments `total_salidas` on the caja. Cash gastos reduce the physical cash balance in the reconciliation calculation.
+  </Step>
+
+  <Step title="Review the pre-close summary">
+    Before closing, pull the resumen to see all balances:
+
+    ```bash
+    curl http://localhost:3000/api/caja/resumen \
+      -H "Authorization: Bearer $TOKEN"
+    ```
+
+    ```json
+    {
+      "resumen": {
+        "monto_inicial": 500.00,
+        "ventas_efectivo": 1200.00,
+        "ventas_qr": 800.00,
+        "gastos_efectivo": 100.00,
+        "gastos_qr": 50.00,
+        "efectivo_esperado": 1600.00,
+        "total_qr": 750.00,
+        "total_del_dia": 2000.00,
+        "total_gastos": 150.00
+      },
+      "gastos": [...]
+    }
+    ```
+
+    Use `efectivo_esperado` as the reference amount when you count the physical drawer.
+  </Step>
+
+  <Step title="Close the cash register">
+    Count the physical cash in the drawer at the end of the shift and submit denomination counts. The API computes the `monto_contado` from these denominations and compares it to `efectivo_esperado`.
+
+    ```bash
+    curl -X POST http://localhost:3000/api/caja/cerrar \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "b200": 3,
+        "b100": 8,
+        "b50": 12,
+        "b20": 20,
+        "b10": 25,
+        "b5": 40,
+        "m2": 15,
+        "m1": 30,
+        "m050": 50,
+        "m020": 60,
+        "m010": 70,
+        "cierre_obs": "Cierre normal sin novedades"
+      }'
+    ```
+
+    The response includes the full reconciliation:
+
+    ```json
+    {
+      "caja_id": 5,
+      "fecha": "2026-03-18",
+      "monto_contado": 1580.00,
+      "efectivo_esperado": 1600.00,
+      "diferencia": -20.00,
+      "estado_diferencia": "faltante"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Cash reconciliation formula
+
+The API calculates `efectivo_esperado` as:
+
+```
+efectivo_esperado = monto_inicial + ventas_efectivo - gastos_efectivo
+```
+
+QR sales and QR expenses are tracked separately and do not affect the physical cash count:
+
+```
+total_qr = ventas_qr - gastos_qr
+```
+
+## Understanding diferencia
+
+After closing, the `diferencia` field tells you the outcome of the physical count:
+
+| `diferencia` | `estado_diferencia` | Meaning |
+|---|---|---|
+| `0` | `exacto` | Physical count matches exactly |
+| `> 0` | `sobrante` | More cash than expected |
+| `< 0` | `faltante` | Less cash than expected |
+
+The `cierre_obs` field lets you attach a free-text note to the closing record for audit purposes.

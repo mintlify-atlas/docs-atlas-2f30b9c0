@@ -1,122 +1,135 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Restaurante API",
+  "theme": "sequoia",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#E53E3E",
+    "light": "#FED7D7",
+    "dark": "#9B2C2C"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/davidt369/backend-restaurante"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/davidt369/backend-restaurante"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "authentication"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Architecture",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "architecture/overview",
+              "architecture/database-schema",
+              "architecture/websockets"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/order-lifecycle",
+              "guides/cash-register",
+              "guides/kitchen-display",
+              "guides/inventory-management"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Deployment",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "deployment/docker",
+              "deployment/environment-variables"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Auth",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/auth/login",
+              "api-reference/auth/profile"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Transactions",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/transacciones/create",
+              "api-reference/transacciones/list",
+              "api-reference/transacciones/get",
+              "api-reference/transacciones/update",
+              "api-reference/transacciones/delete",
+              "api-reference/transacciones/reopen",
+              "api-reference/transacciones/items",
+              "api-reference/transacciones/extras",
+              "api-reference/transacciones/payments",
+              "api-reference/transacciones/kitchen"
+            ]
+          },
+          {
+            "group": "Cash Register",
+            "pages": [
+              "api-reference/caja/open",
+              "api-reference/caja/close",
+              "api-reference/caja/current",
+              "api-reference/caja/summary",
+              "api-reference/caja/expenses",
+              "api-reference/caja/history"
+            ]
+          },
+          {
+            "group": "Menu",
+            "pages": [
+              "api-reference/platos/create",
+              "api-reference/platos/list",
+              "api-reference/platos/get",
+              "api-reference/platos/update",
+              "api-reference/platos/delete",
+              "api-reference/platos/ingredients"
+            ]
+          },
+          {
+            "group": "Products",
+            "pages": [
+              "api-reference/productos/overview"
+            ]
+          },
+          {
+            "group": "Ingredients",
+            "pages": [
+              "api-reference/ingredientes/overview"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api-reference/usuarios/overview"
+            ]
+          },
+          {
+            "group": "Dashboard",
+            "pages": [
+              "api-reference/dashboard/stats"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

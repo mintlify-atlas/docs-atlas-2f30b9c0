@@ -1,0 +1,156 @@
+---
+title: "Get current register"
+description: "GET /api/caja/actual — Retrieve the currently open cash register"
+---
+
+## `GET /api/caja/actual`
+
+Returns the register that is currently open. If no register is open, returns `null`.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin` or `cajero`
+
+## Request
+
+No parameters or body required.
+
+## Response
+
+### Success (200)
+
+Returns the open `caja_turno` object, or `null` if no register is open.
+
+<ResponseField name="id" type="number">
+  Auto-incremented register ID
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  Opening date (`YYYY-MM-DD`)
+</ResponseField>
+
+<ResponseField name="hora_apertura" type="string">
+  Opening timestamp (ISO 8601 with timezone)
+</ResponseField>
+
+<ResponseField name="hora_cierre" type="string | null">
+  Closing timestamp — `null` while the register is open
+</ResponseField>
+
+<ResponseField name="usuario_id" type="string | null">
+  ID of the user who opened the register
+</ResponseField>
+
+<ResponseField name="monto_inicial" type="number">
+  Cash amount at opening (BOB)
+</ResponseField>
+
+<ResponseField name="b200" type="number | null">
+  Count of 200 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="b100" type="number | null">
+  Count of 100 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="b50" type="number | null">
+  Count of 50 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="b20" type="number | null">
+  Count of 20 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="b10" type="number | null">
+  Count of 10 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="b5" type="number | null">
+  Count of 5 BOB bills at opening
+</ResponseField>
+
+<ResponseField name="m2" type="number | null">
+  Count of 2 BOB coins at opening
+</ResponseField>
+
+<ResponseField name="m1" type="number | null">
+  Count of 1 BOB coins at opening
+</ResponseField>
+
+<ResponseField name="m050" type="number | null">
+  Count of 0.50 BOB coins at opening
+</ResponseField>
+
+<ResponseField name="m020" type="number | null">
+  Count of 0.20 BOB coins at opening
+</ResponseField>
+
+<ResponseField name="m010" type="number | null">
+  Count of 0.10 BOB coins at opening
+</ResponseField>
+
+<ResponseField name="ventas_efectivo" type="number">
+  Total cash sales accumulated in this shift (BOB)
+</ResponseField>
+
+<ResponseField name="ventas_qr" type="number">
+  Total QR sales accumulated in this shift (BOB)
+</ResponseField>
+
+<ResponseField name="total_salidas" type="number">
+  Total expenses recorded against this register (BOB)
+</ResponseField>
+
+<ResponseField name="cerrada" type="boolean">
+  `false` — the register is open
+</ResponseField>
+
+<ResponseField name="cierre_obs" type="string | null">
+  Closing observations — `null` while open
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` or `cajero` |
+
+## Example
+
+```bash
+curl https://api.example.com/api/caja/actual \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "id": 1,
+  "fecha": "2026-02-04",
+  "hora_apertura": "2026-02-04T08:00:00.000Z",
+  "hora_cierre": null,
+  "usuario_id": "usr_abc123",
+  "monto_inicial": 500.00,
+  "b200": 2,
+  "b100": 1,
+  "b50": 2,
+  "b20": 5,
+  "b10": 10,
+  "b5": 10,
+  "m2": 20,
+  "m1": 20,
+  "m050": 10,
+  "m020": 10,
+  "m010": 10,
+  "ventas_efectivo": 350.00,
+  "ventas_qr": 120.00,
+  "total_salidas": 50.00,
+  "cerrada": false,
+  "cierre_obs": null
+}
+```
+
+When no register is open:
+
+```json
+null
+```

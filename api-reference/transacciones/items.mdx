@@ -1,0 +1,229 @@
+---
+title: "Manage items"
+description: "Add, list, and remove items on a transaction"
+---
+
+Items represent individual products or menu dishes (`platos`) within a transaction. Each item belongs to exactly one transaction and must reference either a `producto_id` or a `plato_id` — never both.
+
+---
+
+## `POST /api/transacciones/:id/items`
+
+Adds a product or dish to the transaction. The `precio_unitario` and `subtotal` are resolved automatically from the product or dish record. If the transaction is `cerrado`, it is reopened automatically before the item is added.
+
+Adding a `plato_id` item also sets `estado_cocina` to `pendiente` and broadcasts the update to the kitchen via WebSocket.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+| Content-Type | application/json | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+#### Body
+
+<ParamField body="producto_id" type="string">
+  ID of the product to add. Mutually exclusive with `plato_id`.
+</ParamField>
+
+<ParamField body="plato_id" type="string">
+  ID of the dish to add. Mutually exclusive with `producto_id`.
+</ParamField>
+
+<Warning>
+  You must provide exactly one of `producto_id` or `plato_id`. Providing both or neither returns a `400` error.
+</Warning>
+
+<ParamField body="cantidad" type="number" required>
+  Quantity to add. Must be ≥ 0.01.
+</ParamField>
+
+<ParamField body="notas" type="string">
+  Free-text preparation notes for this item (e.g. `"Sin cebolla, punto medio"`).
+</ParamField>
+
+<ParamField body="extras" type="array">
+  Optional list of extras to attach at creation time. Each extra follows the [AddExtraDto](#extra-object-shape) schema.
+</ParamField>
+
+#### Extra object shape
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| ingrediente_id | string | — | Inventory ingredient ID. Mutually exclusive with `descripcion`. |
+| descripcion | string | — | Free-text description (e.g. `"Extra queso"`). Mutually exclusive with `ingrediente_id`. |
+| precio | number | Yes | Price of the extra. |
+| cantidad | number | — | Quantity. Defaults to `1`. |
+
+### Response
+
+#### Success (201)
+
+<ResponseField name="id" type="number">
+  Auto-generated item ID.
+</ResponseField>
+
+<ResponseField name="transaccion_id" type="number">
+  Parent transaction ID.
+</ResponseField>
+
+<ResponseField name="producto_id" type="string | null">
+  Associated product ID.
+</ResponseField>
+
+<ResponseField name="plato_id" type="string | null">
+  Associated dish ID.
+</ResponseField>
+
+<ResponseField name="cantidad" type="string">
+  Quantity as a decimal string.
+</ResponseField>
+
+<ResponseField name="precio_unitario" type="string">
+  Unit price resolved from the product or dish.
+</ResponseField>
+
+<ResponseField name="subtotal" type="string">
+  Line total (`precio_unitario × cantidad + extras`). Recalculated whenever extras change.
+</ResponseField>
+
+<ResponseField name="notas" type="string | null">
+  Preparation notes.
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Both `producto_id` and `plato_id` provided, or neither provided |
+| 401 | Unauthorized |
+| 404 | Transaction, product, or dish not found |
+
+---
+
+## `GET /api/transacciones/:id/items`
+
+Returns all active (non-deleted) items for the specified transaction, enriched with the product or dish name.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+
+### Response
+
+#### Success (200)
+
+An array of item objects:
+
+<ResponseField name="[].id" type="number">Item ID.</ResponseField>
+<ResponseField name="[].transaccion_id" type="number">Parent transaction ID.</ResponseField>
+<ResponseField name="[].producto_id" type="string | null">Product ID.</ResponseField>
+<ResponseField name="[].plato_id" type="string | null">Dish ID.</ResponseField>
+<ResponseField name="[].nombre" type="string">Resolved product or dish name.</ResponseField>
+<ResponseField name="[].cantidad" type="string">Quantity.</ResponseField>
+<ResponseField name="[].precio_unitario" type="string">Unit price.</ResponseField>
+<ResponseField name="[].subtotal" type="string">Line total.</ResponseField>
+<ResponseField name="[].notas" type="string | null">Preparation notes.</ResponseField>
+
+---
+
+## `DELETE /api/transacciones/:id/items/:itemId`
+
+Soft-deletes an item from the transaction. The transaction's `monto_total` is recalculated automatically after deletion.
+
+**Authentication:** Required
+**Required role:** Any authenticated user
+
+### Request
+
+#### Headers
+
+| Header | Value | Required |
+|---|---|---|
+| Authorization | Bearer \<token\> | Yes |
+
+#### Path parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| id | number | The transaction ID |
+| itemId | number | The item ID |
+
+### Response
+
+#### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message.
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized |
+| 404 | Transaction or item not found |
+
+---
+
+## Example
+
+```bash
+# Add a dish to transaction 42
+curl -X POST http://localhost:3000/api/transacciones/42/items \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"plato_id": "plato_abc123", "cantidad": 2, "notas": "Sin cebolla"}'
+```
+
+```json
+{
+  "id": 7,
+  "transaccion_id": 42,
+  "producto_id": null,
+  "plato_id": "plato_abc123",
+  "cantidad": "2",
+  "precio_unitario": "35.00",
+  "subtotal": "70.00",
+  "notas": "Sin cebolla",
+  "creado_en": "2026-03-18T14:31:00.000Z",
+  "actualizado_en": "2026-03-18T14:31:00.000Z",
+  "borrado_en": null
+}
+```
+
+```bash
+# List all items
+curl http://localhost:3000/api/transacciones/42/items \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```bash
+# Remove item 7
+curl -X DELETE http://localhost:3000/api/transacciones/42/items/7 \
+  -H "Authorization: Bearer $TOKEN"
+```

@@ -1,0 +1,52 @@
+---
+title: "Delete dish"
+description: "DELETE /api/platos/:id — Soft-delete a dish from the menu"
+---
+
+## `DELETE /api/platos/:id`
+
+Soft-deletes a dish by setting its `borrado_en` timestamp. The record remains in the database but is excluded from all active dish queries.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+<Warning>
+  This is a **soft delete**. The dish record is not removed from the database — `borrado_en` is set to the current timestamp. The dish will no longer appear in `GET /api/platos` or `GET /api/platos/:id`, but historical references in orders remain intact.
+</Warning>
+
+## Request
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The dish ID (nanoid format, 10 characters)
+</ParamField>
+
+## Response
+
+### Success (200)
+
+<ResponseField name="message" type="string">
+  Confirmation message, e.g. `"Plato con ID aB3dEfGhIj eliminado exitosamente (soft delete)"`
+</ResponseField>
+
+### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` |
+| 404 | Dish not found or already deleted |
+
+## Example
+
+```bash
+curl -X DELETE https://api.example.com/api/platos/aB3dEfGhIj \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "message": "Plato con ID aB3dEfGhIj eliminado exitosamente (soft delete)"
+}
+```

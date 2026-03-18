@@ -1,0 +1,169 @@
+---
+title: "Kitchen display integration"
+description: "Real-time order queue for kitchen staff via WebSocket"
+---
+
+The Restaurante API includes a dedicated WebSocket namespace for kitchen displays. When orders arrive or change, all connected kitchen clients receive real-time updates so staff always see the current queue without polling.
+
+## WebSocket namespace
+
+The kitchen gateway runs on the `/cocina` Socket.IO namespace. Connect to it using the same host and port as the REST API:
+
+```
+ws://localhost:3000/cocina
+```
+
+CORS is configured to accept all origins by default. In production, restrict this to your frontend domain in the `CocinaGateway` configuration.
+
+## Events
+
+The gateway emits three events to all connected clients:
+
+| Event | Payload | When it fires |
+|---|---|---|
+| `nuevo-pedido` | Full transaction object | A new transaction is created with a `mesa` or `cliente` |
+| `pedidos-actualizados` | Array of all pending transactions | Any time the queue changes (new item, extra added, item removed) |
+| `pedido-completado` | Transaction `id` (number) | Kitchen marks an order as done |
+
+### Date format
+
+All date fields in WebSocket payloads are formatted in the `America/La_Paz` timezone using the pattern `HH:mm - dd/MM/yyyy`. For example:
+
+```
+"hora": "08:35 - 18/03/2026"
+```
+
+This applies to `fecha`, `hora`, `creado_en`, and `actualizado_en` fields on all nested objects.
+
+## REST endpoint for initial load
+
+When your kitchen display first connects, fetch the current pending queue over REST before subscribing to WebSocket events:
+
+```bash
+curl http://localhost:3000/api/transacciones/cocina/pendientes \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+This returns all transactions where `estado_cocina = pendiente`, each enriched with their full items and extras.
+
+## Marking an order as done
+
+When the kitchen finishes preparing an order, call the REST endpoint to mark it complete:
+
+```bash
+curl -X PATCH http://localhost:3000/api/transacciones/42/cocina/completar \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+This:
+1. Sets `estado_cocina: terminado` on the transaction.
+2. Recalculates the transaction state — closes it if it is also fully paid.
+3. Emits `pedido-completado` with the transaction `id` to all kitchen clients.
+4. Emits `pedidos-actualizados` with the updated queue to all kitchen clients.
+
+## Kitchen display client example
+
+The following TypeScript example shows a complete kitchen display client using the Socket.IO browser client:
+
+```typescript
+import { io, Socket } from 'socket.io-client';
+
+interface Extra {
+  id: number;
+  descripcion: string | null;
+  ingrediente_id: string | null;
+  precio: string;
+  cantidad: string;
+}
+
+interface Item {
+  id: number;
+  plato_id: string | null;
+  producto_id: string | null;
+  nombre: string;
+  cantidad: string;
+  precio_unitario: string;
+  subtotal: string;
+  notas: string | null;
+  extras: Extra[];
+}
+
+interface Pedido {
+  id: number;
+  concepto: string;
+  mesa: string | null;
+  cliente: string | null;
+  hora: string;       // "HH:mm - dd/MM/yyyy" (America/La_Paz)
+  estado_cocina: string;
+  items: Item[];
+}
+
+class KitchenDisplay {
+  private socket: Socket;
+  private pedidos: Pedido[] = [];
+
+  constructor(apiUrl: string, token: string) {
+    this.socket = io(`${apiUrl}/cocina`, {
+      auth: { token },
+    });
+
+    this.socket.on('connect', () => {
+      console.log('Connected to kitchen namespace');
+      this.loadInitialQueue(apiUrl, token);
+    });
+
+    this.socket.on('nuevo-pedido', (pedido: Pedido) => {
+      console.log('New order:', pedido.id, pedido.mesa);
+      this.renderQueue(this.pedidos);
+    });
+
+    this.socket.on('pedidos-actualizados', (pedidos: Pedido[]) => {
+      this.pedidos = pedidos;
+      this.renderQueue(pedidos);
+    });
+
+    this.socket.on('pedido-completado', (pedidoId: number) => {
+      console.log('Order completed:', pedidoId);
+      this.pedidos = this.pedidos.filter((p) => p.id !== pedidoId);
+      this.renderQueue(this.pedidos);
+    });
+
+    this.socket.on('disconnect', () => {
+      console.log('Disconnected from kitchen namespace');
+    });
+  }
+
+  private async loadInitialQueue(apiUrl: string, token: string): Promise<void> {
+    const res = await fetch(`${apiUrl}/api/transacciones/cocina/pendientes`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    this.pedidos = await res.json();
+    this.renderQueue(this.pedidos);
+  }
+
+  async markDone(pedidoId: number, apiUrl: string, token: string): Promise<void> {
+    await fetch(`${apiUrl}/api/transacciones/${pedidoId}/cocina/completar`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    // The gateway will emit pedido-completado and pedidos-actualizados automatically
+  }
+
+  private renderQueue(pedidos: Pedido[]): void {
+    // Replace with your UI rendering logic
+    console.table(pedidos.map((p) => ({
+      id: p.id,
+      mesa: p.mesa,
+      hora: p.hora,
+      items: p.items.length,
+    })));
+  }
+}
+
+// Usage
+const display = new KitchenDisplay('http://localhost:3000', '<your_jwt_token>');
+```
+
+<Note>
+  The `pedidos-actualizados` event is fired for every change to the queue — including adding an item, adding an extra, or removing an item. Your client only needs to handle this one event to keep the full queue in sync. Use `nuevo-pedido` if you want to trigger a specific notification sound or animation for brand-new orders.
+</Note>

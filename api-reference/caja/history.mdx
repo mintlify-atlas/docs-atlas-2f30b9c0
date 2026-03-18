@@ -1,0 +1,165 @@
+---
+title: "Register history"
+description: "GET /api/caja/historial and GET /api/caja/:id/detalle — Browse past registers and retrieve full details for a specific one"
+---
+
+**Authentication:** Bearer JWT required
+
+---
+
+## `GET /api/caja/historial`
+
+Returns a list of past register records ordered by date descending. Includes both open and closed registers.
+
+**Required role:** `admin`
+
+### Request
+
+#### Query parameters
+
+<ParamField query="limit" type="number">
+  Maximum number of records to return (default: 10)
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+An array of `caja_turno` objects.
+
+<ResponseField name="[].id" type="number">
+  Register ID
+</ResponseField>
+
+<ResponseField name="[].fecha" type="string">
+  Register date (`YYYY-MM-DD`)
+</ResponseField>
+
+<ResponseField name="[].hora_apertura" type="string">
+  Opening timestamp (ISO 8601)
+</ResponseField>
+
+<ResponseField name="[].hora_cierre" type="string | null">
+  Closing timestamp, or `null` if still open
+</ResponseField>
+
+<ResponseField name="[].usuario_id" type="string | null">
+  ID of the user who opened the register
+</ResponseField>
+
+<ResponseField name="[].monto_inicial" type="number">
+  Opening cash amount (BOB)
+</ResponseField>
+
+<ResponseField name="[].ventas_efectivo" type="number">
+  Total cash sales for the shift (BOB)
+</ResponseField>
+
+<ResponseField name="[].ventas_qr" type="number">
+  Total QR sales for the shift (BOB)
+</ResponseField>
+
+<ResponseField name="[].total_salidas" type="number">
+  Total expenses for the shift (BOB)
+</ResponseField>
+
+<ResponseField name="[].cerrada" type="boolean">
+  `true` if the register has been closed
+</ResponseField>
+
+<ResponseField name="[].cierre_obs" type="string | null">
+  Closing observations, if any
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — role is not `admin` |
+
+### Example
+
+```bash
+curl "https://api.example.com/api/caja/historial?limit=5" \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "id": 3,
+    "fecha": "2026-02-04",
+    "hora_apertura": "2026-02-04T08:00:00.000Z",
+    "hora_cierre": "2026-02-04T22:00:00.000Z",
+    "usuario_id": "usr_abc123",
+    "monto_inicial": 500.00,
+    "ventas_efectivo": 1200.00,
+    "ventas_qr": 800.00,
+    "total_salidas": 150.00,
+    "cerrada": true,
+    "cierre_obs": "Cierre normal"
+  }
+]
+```
+
+---
+
+## `GET /api/caja/:id/detalle`
+
+Returns the full detail of a specific register, including a computed financial summary and all associated expenses.
+
+**Required role:** `admin` or `cajero`
+
+### Request
+
+#### Path parameters
+
+<ParamField path="id" type="number" required>
+  The numeric ID of the register
+</ParamField>
+
+### Response
+
+#### Success (200)
+
+Same shape as the response from `GET /api/caja/resumen`, but for any register (not just the open one).
+
+<ResponseField name="caja" type="object">
+  The full `caja_turno` record for the requested register
+</ResponseField>
+
+<ResponseField name="resumen" type="object">
+  Computed financial summary
+
+  <Expandable title="resumen fields">
+    <ResponseField name="resumen.monto_inicial" type="number">Opening cash (BOB)</ResponseField>
+    <ResponseField name="resumen.ventas_efectivo" type="number">Cash sales (BOB)</ResponseField>
+    <ResponseField name="resumen.ventas_qr" type="number">QR sales (BOB)</ResponseField>
+    <ResponseField name="resumen.gastos_efectivo" type="number">Cash expenses (BOB)</ResponseField>
+    <ResponseField name="resumen.gastos_qr" type="number">QR expenses (BOB)</ResponseField>
+    <ResponseField name="resumen.efectivo_esperado" type="number">Expected cash on hand (BOB)</ResponseField>
+    <ResponseField name="resumen.total_qr" type="number">Net QR balance (BOB)</ResponseField>
+    <ResponseField name="resumen.total_del_dia" type="number">Total day revenue (BOB)</ResponseField>
+    <ResponseField name="resumen.total_gastos" type="number">Total all expenses (BOB)</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="gastos" type="array">
+  All expenses recorded against this register
+</ResponseField>
+
+#### Error responses
+
+| Status | Description |
+|---|---|
+| 400 | Register not found |
+| 401 | Unauthorized — missing or invalid JWT |
+| 403 | Forbidden — insufficient role |
+
+### Example
+
+```bash
+curl https://api.example.com/api/caja/3/detalle \
+  -H "Authorization: Bearer <token>"
+```

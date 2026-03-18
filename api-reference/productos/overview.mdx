@@ -1,0 +1,262 @@
+---
+title: "Products"
+description: "CRUD endpoints for standalone products with stock tracking"
+---
+
+Products are standalone sellable items with an integer stock counter. Every time a product is included in a transaction, its `stock` is decremented automatically. All list and detail endpoints return only active (non-deleted) records.
+
+<Note>
+Soft delete is used throughout. Deleting a product sets `borrado_en` to the current timestamp. The record is never physically removed from the database, and it will no longer appear in any list or detail response.
+</Note>
+
+---
+
+## `POST /api/productos`
+
+Create a new product.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request body
+
+<ParamField body="nombre" type="string" required>
+  Product name. Max 60 characters.
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Price in bolivianos. Must be `>= 0`. Stored as a two-decimal numeric.
+</ParamField>
+
+<ParamField body="stock" type="integer" required>
+  Initial stock quantity. Must be an integer `>= 0`.
+</ParamField>
+
+<ParamField body="unidad" type="string" required>
+  Unit of measure (e.g. `kg`, `unidad`, `litro`). Max 20 characters.
+</ParamField>
+
+### Response
+
+Returns the created product object (`201 Created`).
+
+<ResponseField name="id" type="string">
+  Unique identifier generated with nanoid (10 characters).
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Product name.
+</ResponseField>
+
+<ResponseField name="precio" type="string">
+  Price as a decimal string (e.g. `"45.50"`).
+</ResponseField>
+
+<ResponseField name="stock" type="integer">
+  Current stock quantity.
+</ResponseField>
+
+<ResponseField name="unidad" type="string">
+  Unit of measure.
+</ResponseField>
+
+<ResponseField name="creado_en" type="string (ISO 8601)">
+  Creation timestamp.
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string (ISO 8601)">
+  Last update timestamp.
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string (ISO 8601) | null">
+  Soft-delete timestamp. `null` for active products.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X POST https://api.example.com/api/productos \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Arroz Premium",
+    "precio": 45.50,
+    "stock": 100,
+    "unidad": "kg"
+  }'
+```
+
+```json
+{
+  "id": "aB3dE7fGhJ",
+  "nombre": "Arroz Premium",
+  "precio": "45.50",
+  "stock": 100,
+  "unidad": "kg",
+  "creado_en": "2026-03-18T14:00:00.000Z",
+  "actualizado_en": "2026-03-18T14:00:00.000Z",
+  "borrado_en": null
+}
+```
+
+---
+
+## `GET /api/productos`
+
+Return all active products.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+### Request parameters
+
+No parameters.
+
+### Response
+
+Returns an array of product objects (`200 OK`). Only records where `borrado_en IS NULL` are included.
+
+### Example
+
+```bash
+curl https://api.example.com/api/productos \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "id": "aB3dE7fGhJ",
+    "nombre": "Arroz Premium",
+    "precio": "45.50",
+    "stock": 100,
+    "unidad": "kg",
+    "creado_en": "2026-03-18T14:00:00.000Z",
+    "actualizado_en": "2026-03-18T14:00:00.000Z",
+    "borrado_en": null
+  }
+]
+```
+
+---
+
+## `GET /api/productos/:id`
+
+Return a single active product by ID.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the product.
+</ParamField>
+
+### Response
+
+Returns the product object (`200 OK`), or `404 Not Found` if the product does not exist or has been soft-deleted.
+
+### Example
+
+```bash
+curl https://api.example.com/api/productos/aB3dE7fGhJ \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "id": "aB3dE7fGhJ",
+  "nombre": "Arroz Premium",
+  "precio": "45.50",
+  "stock": 100,
+  "unidad": "kg",
+  "creado_en": "2026-03-18T14:00:00.000Z",
+  "actualizado_en": "2026-03-18T14:00:00.000Z",
+  "borrado_en": null
+}
+```
+
+---
+
+## `PATCH /api/productos/:id`
+
+Partially update a product. All body fields are optional; only the fields you send are updated.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the product to update.
+</ParamField>
+
+<ParamField body="nombre" type="string">
+  New product name. Max 60 characters.
+</ParamField>
+
+<ParamField body="precio" type="number">
+  New price in bolivianos. Must be `>= 0`.
+</ParamField>
+
+<ParamField body="stock" type="integer">
+  New stock quantity. Must be an integer `>= 0`.
+</ParamField>
+
+<ParamField body="unidad" type="string">
+  New unit of measure. Max 20 characters.
+</ParamField>
+
+### Response
+
+Returns the updated product object (`200 OK`). `actualizado_en` is always refreshed.
+
+### Example
+
+```bash
+curl -X PATCH https://api.example.com/api/productos/aB3dE7fGhJ \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"stock": 80, "precio": 48.00}'
+```
+
+---
+
+## `DELETE /api/productos/:id`
+
+Soft-delete a product.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+<Note>
+This operation sets `borrado_en` and `actualizado_en` to the current timestamp. The product record is retained in the database and will no longer appear in list or detail responses.
+</Note>
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the product to delete.
+</ParamField>
+
+### Response
+
+Returns a confirmation message (`200 OK`).
+
+<ResponseField name="message" type="string">
+  Confirmation string, e.g. `"Producto con ID aB3dE7fGhJ eliminado exitosamente (soft delete)"`.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X DELETE https://api.example.com/api/productos/aB3dE7fGhJ \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "message": "Producto con ID aB3dE7fGhJ eliminado exitosamente (soft delete)"
+}
+```

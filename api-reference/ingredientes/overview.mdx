@@ -1,0 +1,253 @@
+---
+title: "Ingredients"
+description: "CRUD endpoints for raw ingredients with stock and minimum threshold tracking"
+---
+
+Ingredients are raw materials consumed when a dish (plato) that contains them is ordered in a transaction. Each ingredient tracks its current quantity (`cantidad`) and a minimum threshold (`cantidad_minima`) used to trigger low-stock alerts in the dashboard.
+
+<Note>
+Soft delete is used throughout. Deleting an ingredient sets `borrado_en` to the current timestamp. The record is never physically removed from the database and will no longer appear in any list or detail response.
+</Note>
+
+<Note>
+Ingredient stock (`cantidad`) is automatically deducted when a plato that uses the ingredient is added to a transaction. You can also adjust stock directly via the update endpoint.
+</Note>
+
+---
+
+## `POST /api/ingredientes`
+
+Create a new ingredient.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request body
+
+<ParamField body="nombre" type="string" required>
+  Ingredient name. Max 100 characters.
+</ParamField>
+
+<ParamField body="unidad" type="string" required>
+  Unit of measure (e.g. `kg`, `litro`, `unidad`). Max 20 characters.
+</ParamField>
+
+<ParamField body="cantidad" type="number" required>
+  Current available quantity. Float, must be `>= 0`.
+</ParamField>
+
+<ParamField body="cantidad_minima" type="number" required>
+  Minimum required quantity for low-stock alerts. Float, must be `>= 0`. When `cantidad` falls below this value the dashboard flags the ingredient.
+</ParamField>
+
+### Response
+
+Returns the created ingredient object (`201 Created`).
+
+<ResponseField name="id" type="string">
+  Unique identifier generated with nanoid (10 characters).
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Ingredient name.
+</ResponseField>
+
+<ResponseField name="unidad" type="string">
+  Unit of measure.
+</ResponseField>
+
+<ResponseField name="cantidad" type="number">
+  Current quantity (float).
+</ResponseField>
+
+<ResponseField name="cantidad_minima" type="number">
+  Minimum quantity threshold (float).
+</ResponseField>
+
+<ResponseField name="creado_en" type="string (ISO 8601)">
+  Creation timestamp.
+</ResponseField>
+
+<ResponseField name="actualizado_en" type="string (ISO 8601)">
+  Last update timestamp.
+</ResponseField>
+
+<ResponseField name="borrado_en" type="string (ISO 8601) | null">
+  Soft-delete timestamp. `null` for active ingredients.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X POST https://api.example.com/api/ingredientes \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nombre": "Tomate",
+    "unidad": "kg",
+    "cantidad": 50.5,
+    "cantidad_minima": 10
+  }'
+```
+
+```json
+{
+  "id": "cK9mN2pQrS",
+  "nombre": "Tomate",
+  "unidad": "kg",
+  "cantidad": 50.5,
+  "cantidad_minima": 10,
+  "creado_en": "2026-03-18T14:00:00.000Z",
+  "actualizado_en": "2026-03-18T14:00:00.000Z",
+  "borrado_en": null
+}
+```
+
+---
+
+## `GET /api/ingredientes`
+
+Return all active ingredients.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+### Request parameters
+
+No parameters.
+
+### Response
+
+Returns an array of ingredient objects (`200 OK`). Only records where `borrado_en IS NULL` are included.
+
+### Example
+
+```bash
+curl https://api.example.com/api/ingredientes \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+[
+  {
+    "id": "cK9mN2pQrS",
+    "nombre": "Tomate",
+    "unidad": "kg",
+    "cantidad": 50.5,
+    "cantidad_minima": 10,
+    "creado_en": "2026-03-18T14:00:00.000Z",
+    "actualizado_en": "2026-03-18T14:00:00.000Z",
+    "borrado_en": null
+  }
+]
+```
+
+---
+
+## `GET /api/ingredientes/:id`
+
+Return a single active ingredient by ID.
+
+**Authentication:** Bearer JWT required  
+**Required role:** any authenticated user
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the ingredient.
+</ParamField>
+
+### Response
+
+Returns the ingredient object (`200 OK`), or `404 Not Found` if the ingredient does not exist or has been soft-deleted.
+
+### Example
+
+```bash
+curl https://api.example.com/api/ingredientes/cK9mN2pQrS \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## `PATCH /api/ingredientes/:id`
+
+Partially update an ingredient. All body fields are optional; only the fields you send are updated.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the ingredient to update.
+</ParamField>
+
+<ParamField body="nombre" type="string">
+  New ingredient name. Max 100 characters.
+</ParamField>
+
+<ParamField body="unidad" type="string">
+  New unit of measure. Max 20 characters.
+</ParamField>
+
+<ParamField body="cantidad" type="number">
+  Updated quantity. Float, must be `>= 0`. Use this field to manually adjust stock.
+</ParamField>
+
+<ParamField body="cantidad_minima" type="number">
+  Updated minimum threshold. Float, must be `>= 0`.
+</ParamField>
+
+### Response
+
+Returns the updated ingredient object (`200 OK`). `actualizado_en` is always refreshed.
+
+### Example
+
+```bash
+curl -X PATCH https://api.example.com/api/ingredientes/cK9mN2pQrS \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"cantidad": 35.0, "cantidad_minima": 8}'
+```
+
+---
+
+## `DELETE /api/ingredientes/:id`
+
+Soft-delete an ingredient.
+
+**Authentication:** Bearer JWT required  
+**Required role:** `admin`
+
+<Note>
+This operation sets `borrado_en` and `actualizado_en` to the current timestamp. The ingredient record is retained in the database and will no longer appear in list or detail responses.
+</Note>
+
+### Request parameters
+
+<ParamField path="id" type="string" required>
+  The nanoid of the ingredient to delete.
+</ParamField>
+
+### Response
+
+Returns a confirmation message (`200 OK`).
+
+<ResponseField name="message" type="string">
+  Confirmation string, e.g. `"Ingrediente con ID cK9mN2pQrS eliminado exitosamente (soft delete)"`.
+</ResponseField>
+
+### Example
+
+```bash
+curl -X DELETE https://api.example.com/api/ingredientes/cK9mN2pQrS \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "message": "Ingrediente con ID cK9mN2pQrS eliminado exitosamente (soft delete)"
+}
+```
