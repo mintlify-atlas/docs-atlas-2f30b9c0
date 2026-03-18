@@ -11,7 +11,7 @@ The kitchen view provides a real-time list of orders that are waiting to be prep
 When `estado_cocina` becomes `terminado` and the transaction is also fully paid, the transaction automatically closes (`estado → cerrado`).
 
 <Note>
-  Both endpoints emit real-time WebSocket events so connected kitchen displays update without polling. Subscribe to the `pedidos_actualizados` and `pedido_completado` events on the `cocina` namespace.
+  Both endpoints emit real-time WebSocket events so connected kitchen displays update without polling. Subscribe to the `pedidos-actualizados` and `pedido-completado` events on the `cocina` namespace.
 </Note>
 
 ---

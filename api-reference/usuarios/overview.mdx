@@ -79,7 +79,7 @@ Returns the created user object (`201 Created`). The `contrasena` field is exclu
 ### Example
 
 ```bash
-curl -X POST https://api.example.com/api/usuarios \
+curl -X POST http://localhost:3000/api/usuarios \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -121,7 +121,7 @@ Returns an array of user objects (`200 OK`), ordered by `creado_en` ascending. O
 ### Example
 
 ```bash
-curl https://api.example.com/api/usuarios \
+curl http://localhost:3000/api/usuarios \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -160,7 +160,7 @@ Returns the user object (`200 OK`) without `contrasena`, or `404 Not Found` if t
 ### Example
 
 ```bash
-curl https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+curl http://localhost:3000/api/usuarios/usr_abc123def456ghi7 \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -211,7 +211,7 @@ Returns the updated user object (`200 OK`) without `contrasena`. `actualizado_en
 ### Example
 
 ```bash
-curl -X PUT https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+curl -X PUT http://localhost:3000/api/usuarios/usr_abc123def456ghi7 \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"rol": "admin"}'
@@ -251,6 +251,6 @@ Returns `204 No Content` on success. No body is returned.
 ### Example
 
 ```bash
-curl -X DELETE https://api.example.com/api/usuarios/usr_abc123def456ghi7 \
+curl -X DELETE http://localhost:3000/api/usuarios/usr_abc123def456ghi7 \
   -H "Authorization: Bearer <token>"
 ```

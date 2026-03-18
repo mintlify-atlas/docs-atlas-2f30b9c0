@@ -81,7 +81,7 @@ An array of `caja_turno` objects.
 ### Example
 
 ```bash
-curl "https://api.example.com/api/caja/historial?limit=5" \
+curl "http://localhost:3000/api/caja/historial?limit=5" \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -160,6 +160,6 @@ Same shape as the response from `GET /api/caja/resumen`, but for any register (n
 ### Example
 
 ```bash
-curl https://api.example.com/api/caja/3/detalle \
+curl http://localhost:3000/api/caja/3/detalle \
   -H "Authorization: Bearer <token>"
 ```

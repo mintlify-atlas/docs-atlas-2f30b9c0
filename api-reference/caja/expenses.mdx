@@ -79,7 +79,7 @@ Records an expense against the currently open register. Cash expenses (`efectivo
 ### Example
 
 ```bash
-curl -X POST https://api.example.com/api/caja/gastos \
+curl -X POST http://localhost:3000/api/caja/gastos \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,7 +161,7 @@ Returns an array of expense objects. Each item has the same shape as the `POST /
 ### Example
 
 ```bash
-curl "https://api.example.com/api/caja/gastos/historial?limit=10" \
+curl "http://localhost:3000/api/caja/gastos/historial?limit=10" \
   -H "Authorization: Bearer <token>"
 ```
 

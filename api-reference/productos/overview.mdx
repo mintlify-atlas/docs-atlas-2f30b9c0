@@ -75,7 +75,7 @@ Returns the created product object (`201 Created`).
 ### Example
 
 ```bash
-curl -X POST https://api.example.com/api/productos \
+curl -X POST http://localhost:3000/api/productos \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -119,7 +119,7 @@ Returns an array of product objects (`200 OK`). Only records where `borrado_en I
 ### Example
 
 ```bash
-curl https://api.example.com/api/productos \
+curl http://localhost:3000/api/productos \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -160,7 +160,7 @@ Returns the product object (`200 OK`), or `404 Not Found` if the product does no
 ### Example
 
 ```bash
-curl https://api.example.com/api/productos/aB3dE7fGhJ \
+curl http://localhost:3000/api/productos/aB3dE7fGhJ \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -215,7 +215,7 @@ Returns the updated product object (`200 OK`). `actualizado_en` is always refres
 ### Example
 
 ```bash
-curl -X PATCH https://api.example.com/api/productos/aB3dE7fGhJ \
+curl -X PATCH http://localhost:3000/api/productos/aB3dE7fGhJ \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"stock": 80, "precio": 48.00}'
@@ -251,7 +251,7 @@ Returns a confirmation message (`200 OK`).
 ### Example
 
 ```bash
-curl -X DELETE https://api.example.com/api/productos/aB3dE7fGhJ \
+curl -X DELETE http://localhost:3000/api/productos/aB3dE7fGhJ \
   -H "Authorization: Bearer <token>"
 ```
 

@@ -11,7 +11,7 @@ Creates a new transaction. If a cash register (`caja`) is currently open, it is 
 **Required role:** Any authenticated user
 
 <Note>
-  You do not need to open a `caja` before creating a transaction. When no register is open the transaction is created without a `caja_id`.
+  If a cash register (`caja`) is currently open, the transaction is automatically linked to it even if you omit `caja_id`. Transactions created without an open register will have `caja_id: null` and any payments recorded will not be tallied to a shift — open the register first for accurate daily reconciliation.
 </Note>
 
 ## Request

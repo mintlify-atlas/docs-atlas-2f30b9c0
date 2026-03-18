@@ -9,7 +9,7 @@ Items represent individual products or menu dishes (`platos`) within a transacti
 
 ## `POST /api/transacciones/:id/items`
 
-Adds a product or dish to the transaction. The `precio_unitario` and `subtotal` are resolved automatically from the product or dish record. If the transaction is `cerrado`, it is reopened automatically before the item is added.
+Adds a product or dish to the transaction. The server automatically resolves `precio_unitario` from the current price on the product or dish record — you do not pass it in the request body. If the transaction is `cerrado`, it is reopened automatically before the item is added.
 
 Adding a `plato_id` item also sets `estado_cocina` to `pendiente` and broadcasts the update to the kitchen via WebSocket.
 

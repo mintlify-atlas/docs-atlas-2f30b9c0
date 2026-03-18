@@ -77,7 +77,7 @@ Adds an ingredient to a dish's recipe.
 ### Example
 
 ```bash
-curl -X POST https://api.example.com/api/platos/aB3dEfGhIj/ingredientes \
+curl -X POST http://localhost:3000/api/platos/aB3dEfGhIj/ingredientes \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -145,7 +145,7 @@ An array of ingredient entries with joined ingredient data.
 ### Example
 
 ```bash
-curl https://api.example.com/api/platos/aB3dEfGhIj/ingredientes \
+curl http://localhost:3000/api/platos/aB3dEfGhIj/ingredientes \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -211,7 +211,7 @@ Updates the quantity of a specific ingredient in a dish's recipe.
 ### Example
 
 ```bash
-curl -X PATCH https://api.example.com/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
+curl -X PATCH http://localhost:3000/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{ "cantidad": 3.0 }'
@@ -262,7 +262,7 @@ Removes an ingredient from a dish's recipe (soft delete on the `plato_ingredient
 ### Example
 
 ```bash
-curl -X DELETE https://api.example.com/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
+curl -X DELETE http://localhost:3000/api/platos/aB3dEfGhIj/ingredientes/abc123xyz \
   -H "Authorization: Bearer <token>"
 ```
 

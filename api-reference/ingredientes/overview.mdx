@@ -79,7 +79,7 @@ Returns the created ingredient object (`201 Created`).
 ### Example
 
 ```bash
-curl -X POST https://api.example.com/api/ingredientes \
+curl -X POST http://localhost:3000/api/ingredientes \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -123,7 +123,7 @@ Returns an array of ingredient objects (`200 OK`). Only records where `borrado_e
 ### Example
 
 ```bash
-curl https://api.example.com/api/ingredientes \
+curl http://localhost:3000/api/ingredientes \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -164,7 +164,7 @@ Returns the ingredient object (`200 OK`), or `404 Not Found` if the ingredient d
 ### Example
 
 ```bash
-curl https://api.example.com/api/ingredientes/cK9mN2pQrS \
+curl http://localhost:3000/api/ingredientes/cK9mN2pQrS \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -206,7 +206,7 @@ Returns the updated ingredient object (`200 OK`). `actualizado_en` is always ref
 ### Example
 
 ```bash
-curl -X PATCH https://api.example.com/api/ingredientes/cK9mN2pQrS \
+curl -X PATCH http://localhost:3000/api/ingredientes/cK9mN2pQrS \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"cantidad": 35.0, "cantidad_minima": 8}'
@@ -242,7 +242,7 @@ Returns a confirmation message (`200 OK`).
 ### Example
 
 ```bash
-curl -X DELETE https://api.example.com/api/ingredientes/cK9mN2pQrS \
+curl -X DELETE http://localhost:3000/api/ingredientes/cK9mN2pQrS \
   -H "Authorization: Bearer <token>"
 ```
 
