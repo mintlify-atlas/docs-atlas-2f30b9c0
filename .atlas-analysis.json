@@ -1,0 +1,178 @@
+{
+  "projectType": "api-service",
+  "projectName": "Restaurante API",
+  "projectDescription": "A NestJS REST API for restaurant management, covering orders, cash register, menu, inventory, users, and real-time kitchen updates via WebSockets.",
+  "theme": "sequoia",
+  "primaryColor": "#E53E3E",
+  "lightColor": "#FED7D7",
+  "darkColor": "#9B2C2C",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/database-schema",
+              "architecture/websockets"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/order-lifecycle",
+              "guides/cash-register",
+              "guides/kitchen-display",
+              "guides/inventory-management"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Auth",
+            "pages": [
+              "api-reference/auth/login",
+              "api-reference/auth/profile"
+            ]
+          },
+          {
+            "group": "Transactions",
+            "pages": [
+              "api-reference/transacciones/create",
+              "api-reference/transacciones/list",
+              "api-reference/transacciones/get",
+              "api-reference/transacciones/update",
+              "api-reference/transacciones/delete",
+              "api-reference/transacciones/reopen",
+              "api-reference/transacciones/items",
+              "api-reference/transacciones/extras",
+              "api-reference/transacciones/payments",
+              "api-reference/transacciones/kitchen"
+            ]
+          },
+          {
+            "group": "Cash Register",
+            "pages": [
+              "api-reference/caja/open",
+              "api-reference/caja/close",
+              "api-reference/caja/current",
+              "api-reference/caja/summary",
+              "api-reference/caja/expenses",
+              "api-reference/caja/history"
+            ]
+          },
+          {
+            "group": "Menu",
+            "pages": [
+              "api-reference/platos/create",
+              "api-reference/platos/list",
+              "api-reference/platos/get",
+              "api-reference/platos/update",
+              "api-reference/platos/delete",
+              "api-reference/platos/ingredients"
+            ]
+          },
+          {
+            "group": "Products",
+            "pages": [
+              "api-reference/productos/overview"
+            ]
+          },
+          {
+            "group": "Ingredients",
+            "pages": [
+              "api-reference/ingredientes/overview"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api-reference/usuarios/overview"
+            ]
+          },
+          {
+            "group": "Dashboard",
+            "pages": [
+              "api-reference/dashboard/stats"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "JWT-based authentication with role-based access control (admin, cajero)",
+    "Transaction management with item, extra, and payment tracking",
+    "Cash register (caja) lifecycle: open, manage expenses, close with reconciliation",
+    "Menu management with dish-ingredient relationships and stock deduction",
+    "Real-time kitchen display via Socket.IO WebSocket gateway (/cocina namespace)",
+    "Dashboard with real-time stats: daily revenue, open orders, recent activity",
+    "Drizzle ORM with PostgreSQL 17 and automated migrations",
+    "Docker Compose setup for local and production environments",
+    "Soft-delete pattern across all entities for data integrity",
+    "Bolivia (America/La_Paz) timezone handling throughout the system"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/login",
+    "GET /api/auth/profile",
+    "POST /api/transacciones",
+    "GET /api/transacciones",
+    "GET /api/transacciones/:id",
+    "PATCH /api/transacciones/:id",
+    "DELETE /api/transacciones/:id",
+    "POST /api/transacciones/:id/reabrir",
+    "POST /api/transacciones/:id/items",
+    "DELETE /api/transacciones/:id/items/:itemId",
+    "POST /api/transacciones/:id/items/:itemId/extras",
+    "POST /api/transacciones/:id/pagos",
+    "GET /api/transacciones/cocina/pendientes",
+    "PATCH /api/transacciones/:id/cocina/completar",
+    "GET /api/transacciones/caja/:cajaId",
+    "GET /api/transacciones/caja/:cajaId/resumen",
+    "POST /api/caja/abrir",
+    "GET /api/caja/actual",
+    "POST /api/caja/gastos",
+    "GET /api/caja/resumen",
+    "GET /api/caja/gastos/historial",
+    "POST /api/caja/cerrar",
+    "GET /api/caja/historial",
+    "GET /api/caja/:id/detalle",
+    "GET /api/platos",
+    "POST /api/platos",
+    "GET /api/platos/:id",
+    "PATCH /api/platos/:id",
+    "DELETE /api/platos/:id",
+    "POST /api/platos/:id/ingredientes",
+    "GET /api/platos/:id/ingredientes",
+    "DELETE /api/platos/:id/ingredientes/:ingredienteId",
+    "PATCH /api/platos/:id/ingredientes/:ingredienteId",
+    "GET /api/productos",
+    "POST /api/productos",
+    "GET /api/ingredientes",
+    "POST /api/ingredientes",
+    "GET /api/usuarios",
+    "POST /api/usuarios",
+    "GET /api/dashboard/stats",
+    "WebSocket /cocina (events: pedidos-actualizados, nuevo-pedido, pedido-completado)"
+  ]
+}
